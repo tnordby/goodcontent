@@ -34,7 +34,7 @@ Minimum set that commonly blocks builds:
 
 Recommended:
 
-- `CLERK_JWT_ISSUER_DOMAIN` (must match the Clerk JWT template issuer used by Convex)
+- `CLERK_FRONTEND_API_URL` (set on **Convex**; Clerk’s recommended issuer domain for Convex auth)
 - `CLERK_WEBHOOK_SECRET` (for `convex/http.ts` Clerk webhooks)
 - `NEXT_PUBLIC_SITE_URL` (canonical URL for Open Graph metadata)
 
@@ -47,7 +47,7 @@ Recommended:
 npx convex deploy
 ```
 
-3. Set Convex environment variables in the Convex dashboard (not just Vercel), including `CLERK_JWT_ISSUER_DOMAIN` and `CLERK_WEBHOOK_SECRET` as required by your deployment.
+3. Set Convex environment variables in the Convex dashboard (not just Vercel), including `CLERK_FRONTEND_API_URL` (or legacy `CLERK_JWT_ISSUER_DOMAIN`) and `CLERK_WEBHOOK_SECRET` as required by your deployment.
 4. Set `NEXT_PUBLIC_CONVEX_URL` in Vercel to the **prod** Convex cloud URL.
 
 ## Working in this repo (important)

@@ -818,7 +818,7 @@ export default function Home() {
               <div className={`${styles.kicker} ${styles.mono}`}>
                 01 — How it works
               </div>
-              <h2>Three steps. Zero freelancers.</h2>
+              <h2>Three steps. Zero freelancers or retainers.</h2>
             </div>
           </div>
 
@@ -1076,6 +1076,11 @@ export default function Home() {
               </div>
               <h2>Priced on credits, not seats.</h2>
             </div>
+            <p className={styles.sub}>
+              Pay for what you use, not for headcount. All plans include
+              unlimited team members. Scale up or down based on your content
+              volume, not your team size.
+            </p>
           </div>
 
           <div className={styles.pricing}>
