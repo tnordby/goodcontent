@@ -151,7 +151,7 @@ function Wave({ active }: { active: boolean }) {
           style={{
             width: 2,
             height: active
-              ? `${20 + Math.sin(tick / 120 + i * 0.5) * 40 + Math.random() * 30}%`
+              ? `${20 + Math.sin(tick / 120 + i * 0.5) * 40 + Math.sin((tick + i * 13) / 33) * 15}%`
               : "8%",
             background: "var(--accent)",
             borderRadius: 1,
@@ -198,7 +198,6 @@ function InterviewDemo() {
     "idle" | "asking" | "listening" | "follow" | "done"
   >("idle");
   const [qIdx, setQIdx] = useState(0);
-  const [fIdx, setFIdx] = useState(-1);
   const [transcript, setTranscript] = useState<
     Array<{ role: "ai" | "guest"; text: string; partial?: boolean }>
   >([]);
@@ -252,12 +251,10 @@ function InterviewDemo() {
   const run = async () => {
     setTranscript([]);
     setQIdx(0);
-    setFIdx(-1);
     setElapsed(0);
 
     for (let qi = 0; qi < DEMO_SCRIPT.length; qi++) {
       setQIdx(qi);
-      setFIdx(-1);
       const item = DEMO_SCRIPT[qi];
 
       setState("asking");
@@ -270,7 +267,6 @@ function InterviewDemo() {
       await new Promise((r) => setTimeout(r, 400));
 
       for (let fi = 0; fi < item.followups.length; fi++) {
-        setFIdx(fi);
         setState("follow");
         await new Promise((r) => setTimeout(r, 500));
         await typeInto("ai", item.followups[fi].q, 22);
@@ -288,7 +284,6 @@ function InterviewDemo() {
     setState("idle");
     setTranscript([]);
     setQIdx(0);
-    setFIdx(-1);
     setElapsed(0);
   };
 
@@ -1364,30 +1359,30 @@ export default function Home() {
               [
                 "Turnaround",
                 "Minutes",
-                "3–5 weeks",
-                "2–4 weeks",
-                "1–3 days",
+                "2–3 weeks",
+                "3–6 weeks",
+                "3–5 days",
               ],
               [
-                "Cost per piece",
-                "€10–€30",
-                "€800–€3,000",
-                "€1,500–€8,000",
-                "€5,000+ /mo",
+                "Cost",
+                "€199–€999/mo",
+                "€500–€2,000 per piece",
+                "€2,000–€8,000 per piece",
+                "€60,000+/year",
               ],
               [
                 "Expert interview",
                 "Async · no schedule",
-                "You schedule",
-                "You schedule",
-                "Manual",
+                "You coordinate",
+                "You coordinate",
+                "You do it yourself",
               ],
               [
                 "Push to CMS",
                 "One click",
-                "Manual",
-                "Manual",
-                "Manual",
+                "Copy-paste",
+                "Copy-paste",
+                "Copy-paste",
               ],
             ].map((r, i) => (
               <>
