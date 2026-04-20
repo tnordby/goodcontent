@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as briefs from "../briefs.js";
 import type * as characters_actions from "../characters/actions.js";
 import type * as characters_mutations from "../characters/mutations.js";
 import type * as characters_queries from "../characters/queries.js";
@@ -19,12 +20,14 @@ import type * as lib_imagekit from "../lib/imagekit.js";
 import type * as lib_kie from "../lib/kie.js";
 import type * as lib_openai from "../lib/openai.js";
 import type * as lib_polar from "../lib/polar.js";
+import type * as interviews from "../interviews.js";
 import type * as subscriptions_mutations from "../subscriptions/mutations.js";
 import type * as subscriptions_queries from "../subscriptions/queries.js";
 import type * as users from "../users.js";
 import type * as video_generations_actions from "../video_generations/actions.js";
 import type * as video_generations_mutations from "../video_generations/mutations.js";
 import type * as video_generations_queries from "../video_generations/queries.js";
+import type * as workspaces from "../workspaces.js";
 
 import type {
   ApiFromModules,
@@ -33,6 +36,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  briefs: typeof briefs;
   "characters/actions": typeof characters_actions;
   "characters/mutations": typeof characters_mutations;
   "characters/queries": typeof characters_queries;
@@ -46,10 +50,12 @@ declare const fullApi: ApiFromModules<{
   "lib/polar": typeof lib_polar;
   "subscriptions/mutations": typeof subscriptions_mutations;
   "subscriptions/queries": typeof subscriptions_queries;
+  interviews: typeof interviews;
   users: typeof users;
   "video_generations/actions": typeof video_generations_actions;
   "video_generations/mutations": typeof video_generations_mutations;
   "video_generations/queries": typeof video_generations_queries;
+  workspaces: typeof workspaces;
 }>;
 
 /**

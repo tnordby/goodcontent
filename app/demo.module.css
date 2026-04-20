@@ -1,0 +1,191 @@
+/* Interactive demo widget styles */
+.demoShell {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-card);
+  overflow: hidden;
+  margin-bottom: 96px;
+  box-shadow: 0 40px 80px -40px rgba(0,0,0,0.6);
+}
+
+.demoChrome {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.demoDots { display: flex; gap: 6px; width: 52px; }
+.demoDots span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+.demoUrl {
+  flex: 1; text-align: center;
+  font-size: 12px; color: var(--fg-muted);
+  background: var(--bg);
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.demoBody {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 460px;
+}
+@media (min-width: 780px) {
+  .demoBody { grid-template-columns: 280px 1fr; }
+}
+
+.demoLeft {
+  padding: 32px 24px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  position: relative;
+}
+
+.demoOrbWrap {
+  position: relative;
+  width: 140px; height: 140px;
+  display: grid; place-items: center;
+}
+.demoOrb {
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, color-mix(in oklab, var(--accent) 30%, var(--bg-card)), var(--bg-card) 70%);
+  border: 1px solid var(--border-strong);
+  display: grid; place-items: center;
+  position: relative;
+  transition: all 0.3s;
+}
+.demoOrbInner {
+  width: 100px; height: 50px;
+  display: grid; place-items: center;
+}
+.demoOrb.pulseListen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent);
+  animation: pulseListen 1.6s infinite;
+}
+.demoOrb.pulseSpeak {
+  border-color: #5b8dff;
+  box-shadow: 0 0 40px -10px #5b8dff;
+}
+@keyframes pulseListen {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 50%, transparent); }
+  70% { box-shadow: 0 0 0 24px color-mix(in oklab, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+
+.demoStatus {
+  display: flex; align-items: center; gap: 8px;
+}
+.demoStatusDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  box-shadow: 0 0 12px currentColor;
+}
+.demoTimer {
+  font-size: 24px; font-weight: 500;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.demoBrief {
+  margin-top: auto;
+  width: 100%;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+.demoBriefLabel {
+  font-size: 10px;
+  color: var(--fg-subtle);
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+.demoBriefTitle {
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.demoBriefMeta {
+  font-size: 11px;
+  color: var(--fg-subtle);
+  display: flex; gap: 6px;
+  letter-spacing: 0.05em;
+}
+
+.demoRight {
+  display: flex; flex-direction: column;
+  min-height: 460px;
+}
+.demoTranscript {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+  max-height: 460px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.demoTranscript::-webkit-scrollbar { width: 6px; }
+.demoTranscript::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+.demoEmpty {
+  margin: auto 0;
+}
+
+.demoLine {
+  display: flex; flex-direction: column; gap: 6px;
+  animation: fadeUp 0.3s ease;
+}
+.demoWho {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--fg-subtle);
+}
+.demoLine.ai .demoWho { color: #5b8dff; }
+.demoLine.guest .demoWho { color: var(--accent); }
+.demoText {
+  font-size: 15px;
+  color: var(--fg);
+  line-height: 1.55;
+  max-width: 620px;
+}
+.demoText .cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.demoDone {
+  padding: 16px;
+  background: var(--accent-dim);
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.demoControls {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  display: flex; align-items: center; gap: 12px;
+  min-height: 64px;
+}
+.demoRunning {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  letter-spacing: 0.05em;
+}
+.demoRec {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #e3433f;
+  animation: blink 1s infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

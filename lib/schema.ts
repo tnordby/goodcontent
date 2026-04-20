@@ -44,7 +44,7 @@ export const characterSchema = z.object({
       "File size must be at most 5MB"
     )
     .refine(
-      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      (file) => (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type),
       "Only JPEG, PNG, and JPG files are allowed"
     ),
 });

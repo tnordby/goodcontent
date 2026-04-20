@@ -1,0 +1,21 @@
+/* Global styles for landing page */
+
+:root {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Signal theme (light) */
+  --bg: #F7F6F2;
+  --bg-elev: #FFFFFF;
+  --bg-elev-2: #EFEDE6;
+  --bg-card: #FFFFFF;
+  --fg: #0E0E0C;
+  --fg-muted: #585654;
+  --fg-subtle: #8E8B86;
+  --border: #E5E2D9;
+  --border-strong: #D2CEC2;
+  --accent: oklch(0.62 0.19 28);
+  --accent-fg: #FFFFFF;
+  --accent-dim: oklch(0.62 0.19 28 / 0.1);
+  --grid-line: rgba(0,0,0,0.04);
+}
