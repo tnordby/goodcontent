@@ -91,7 +91,6 @@ function WaitlistForm({
       noValidate
     >
       <div className={extraStyles.waitlistInputWrap}>
-        <span className={`${extraStyles.waitlistAt} ${styles.mono}`}>@</span>
         <input
           type="email"
           className={extraStyles.waitlistInput}
@@ -1365,30 +1364,30 @@ export default function Home() {
               [
                 "Turnaround",
                 "Minutes",
+                "3–5 weeks",
                 "2–4 weeks",
-                "1–2 weeks",
-                "Hours",
+                "1–3 days",
               ],
               [
                 "Cost per piece",
-                "€199–€999/mo",
-                "€500–€2,000",
-                "€800–€5,000",
-                "€0 (in-house)",
+                "€10–€30",
+                "€800–€3,000",
+                "€1,500–€8,000",
+                "€5,000+ /mo",
               ],
               [
                 "Expert interview",
                 "Async · no schedule",
                 "You schedule",
                 "You schedule",
-                "—",
+                "Manual",
               ],
               [
                 "Push to CMS",
                 "One click",
-                "Copy-paste",
-                "Copy-paste",
-                "—",
+                "Manual",
+                "Manual",
+                "Manual",
               ],
             ].map((r, i) => (
               <>
