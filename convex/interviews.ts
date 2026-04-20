@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUser, loadOrCreateUserForAuth } from "./users";
 
 async function hashToken(rawToken: string): Promise<string> {
   const bytes = new TextEncoder().encode(rawToken);
@@ -13,7 +13,10 @@ async function hashToken(rawToken: string): Promise<string> {
 export const listByCurrentWorkspace = query({
   args: {},
   handler: async (ctx) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
     const interviews = await ctx.db
       .query("interviews")
       .withIndex("by_workspace_id", (q) => q.eq("workspaceId", user.workspaceId))
@@ -38,7 +41,7 @@ export const createLinkForBrief = mutation({
     expiresInDays: v.optional(v.number()),
   },
   handler: async (ctx, { briefId, expiresInDays }) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await loadOrCreateUserForAuth(ctx);
     const brief = await ctx.db.get(briefId);
     if (!brief || brief.workspaceId !== user.workspaceId) {
       throw new Error("Brief not found");

@@ -1,6 +1,6 @@
 import { internalMutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUser } from "./users";
 
 async function hashToken(rawToken: string): Promise<string> {
   const bytes = new TextEncoder().encode(rawToken);
@@ -135,7 +135,10 @@ async function completeGuestInterviewForToken(
 export const listByCurrentWorkspace = query({
   args: {},
   handler: async (ctx) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
     const drafts = await ctx.db
       .query("drafts")
       .withIndex("by_workspace_id", (q) => q.eq("workspaceId", user.workspaceId))

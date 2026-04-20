@@ -1,11 +1,14 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUser, loadOrCreateUserForAuth } from "./users";
 
 export const listByCurrentWorkspace = query({
   args: {},
   handler: async (ctx) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
     return await ctx.db
       .query("briefs")
       .withIndex("by_workspace_id", (q) => q.eq("workspaceId", user.workspaceId))
@@ -35,7 +38,7 @@ export const create = mutation({
     sources: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await loadOrCreateUserForAuth(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("briefs", {

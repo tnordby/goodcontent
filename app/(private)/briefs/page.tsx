@@ -2,24 +2,42 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { api as rawApi } from "@/convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
-const api = rawApi as any;
+const CONTENT_TYPE_OPTIONS = [
+  { value: "blog_post", label: "Blog post" },
+  { value: "case_study", label: "Case study" },
+  { value: "customer_story", label: "Customer story" },
+  { value: "guide", label: "Guide" },
+  { value: "landing_page", label: "Landing page" },
+  { value: "web_page", label: "Web page" },
+  { value: "email", label: "Email" },
+  { value: "sales_collateral", label: "Sales collateral" },
+] as const;
+
+type ContentTypeValue = (typeof CONTENT_TYPE_OPTIONS)[number]["value"];
 
 export default function BriefsPage() {
-  const briefs = useQuery(api.briefs.listByCurrentWorkspace) ?? [];
+  const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
   const createBrief = useMutation(api.briefs.create);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     title: "",
     topic: "",
-    contentType: "blog_post",
+    contentType: "blog_post" as ContentTypeValue,
     toneOfVoice: "conversational and direct",
     interviewerLanguage: "en",
     outputLanguage: "en",
@@ -69,6 +87,8 @@ export default function BriefsPage() {
     }
   };
 
+  const briefs = briefsQuery ?? [];
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 md:p-8">
       <div>
@@ -107,19 +127,33 @@ export default function BriefsPage() {
                   placeholder="What is this content about?"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Title needs at least 3 characters and topic at least 6 before you can
+                submit.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="contentType">Content type</Label>
-                  <Input
-                    id="contentType"
+                  <Select
                     value={form.contentType}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setForm((prev) => ({
                         ...prev,
-                        contentType: event.target.value,
+                        contentType: value as ContentTypeValue,
                       }))
                     }
-                  />
+                  >
+                    <SelectTrigger id="contentType" className="w-full">
+                      <SelectValue placeholder="Content type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTENT_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tone">Tone</Label>
@@ -195,13 +229,15 @@ export default function BriefsPage() {
             <CardTitle>Workspace briefs</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {briefs.length === 0 ? (
+            {briefsQuery === undefined ? (
+              <p className="text-sm text-muted-foreground">Loading briefs…</p>
+            ) : briefs.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No briefs yet. Create your first brief to start the interview
                 pipeline.
               </p>
             ) : (
-              briefs.map((brief: any) => (
+              briefs.map((brief) => (
                 <div
                   key={brief._id}
                   className="rounded-md border p-3 text-sm text-muted-foreground"
