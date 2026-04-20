@@ -4,11 +4,12 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  mutation,
   query,
   type MutationCtx,
 } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "./users";
+import { getCurrentUser, loadOrCreateUserForAuth } from "./users";
 
 async function hashToken(rawToken: string): Promise<string> {
   const bytes = new TextEncoder().encode(rawToken);
@@ -310,10 +311,95 @@ export const listByCurrentWorkspace = query({
         return {
           ...draft,
           briefTitle: brief?.title ?? "Unknown brief",
+          briefPhase: brief?.phase ?? "unknown",
           interviewStatus: interview?.status ?? "unknown",
         };
       }),
     );
+  },
+});
+
+export const saveDraftContent = mutation({
+  args: {
+    draftId: v.id("drafts"),
+    contentMarkdown: v.string(),
+  },
+  handler: async (ctx, { draftId, contentMarkdown }) => {
+    const user = await loadOrCreateUserForAuth(ctx);
+    const draft = await ctx.db.get(draftId);
+    if (!draft || draft.workspaceId !== user.workspaceId) {
+      throw new Error("Draft not found");
+    }
+    if (draft.status === "generating") {
+      throw new Error("Wait until generation finishes");
+    }
+    if (
+      draft.status === "approved" ||
+      draft.status === "pushed" ||
+      draft.status === "push_pending" ||
+      draft.status === "push_failed"
+    ) {
+      throw new Error("This draft cannot be edited in its current state");
+    }
+    const now = Date.now();
+    await ctx.db.patch(draftId, {
+      contentMarkdown: contentMarkdown.trim(),
+      status: "edited",
+      updatedAt: now,
+    });
+    const brief = await ctx.db.get(draft.briefId);
+    if (brief) {
+      await ctx.db.patch(brief._id, { phase: "edit", updatedAt: now });
+    }
+    return { ok: true as const };
+  },
+});
+
+export const approveDraft = mutation({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, { draftId }) => {
+    const user = await loadOrCreateUserForAuth(ctx);
+    const draft = await ctx.db.get(draftId);
+    if (!draft || draft.workspaceId !== user.workspaceId) {
+      throw new Error("Draft not found");
+    }
+    if (draft.status === "generating") {
+      throw new Error("Wait until generation finishes");
+    }
+    if (draft.status === "approved") {
+      return { ok: true as const };
+    }
+    if (draft.status !== "ready" && draft.status !== "edited") {
+      throw new Error("Only ready or edited drafts can be approved");
+    }
+    const now = Date.now();
+    await ctx.db.patch(draftId, { status: "approved", updatedAt: now });
+    const brief = await ctx.db.get(draft.briefId);
+    if (brief) {
+      await ctx.db.patch(brief._id, { phase: "review", updatedAt: now });
+    }
+    return { ok: true as const };
+  },
+});
+
+export const reopenDraftForEdits = mutation({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, { draftId }) => {
+    const user = await loadOrCreateUserForAuth(ctx);
+    const draft = await ctx.db.get(draftId);
+    if (!draft || draft.workspaceId !== user.workspaceId) {
+      throw new Error("Draft not found");
+    }
+    if (draft.status !== "approved") {
+      throw new Error("Only approved drafts can be sent back for edits");
+    }
+    const now = Date.now();
+    await ctx.db.patch(draftId, { status: "ready", updatedAt: now });
+    const brief = await ctx.db.get(draft.briefId);
+    if (brief) {
+      await ctx.db.patch(brief._id, { phase: "edit", updatedAt: now });
+    }
+    return { ok: true as const };
   },
 });
 
