@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -9,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function InterviewsPage() {
-  const briefs = useQuery(api.briefs.listByCurrentWorkspace) ?? [];
-  const interviews = useQuery(api.interviews.listByCurrentWorkspace) ?? [];
+  const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
+  const interviewsQuery = useQuery(api.interviews.listByCurrentWorkspace);
+  const briefs = briefsQuery ?? [];
+  const interviews = interviewsQuery ?? [];
   const createLink = useMutation(api.interviews.createLinkForBrief);
   const [creatingFor, setCreatingFor] = useState<Id<"briefs"> | null>(null);
   const [latestUrl, setLatestUrl] = useState<string>("");
@@ -85,11 +88,21 @@ export default function InterviewsPage() {
             <CardTitle>Create interview link from brief</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {briefs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No briefs found. Create a brief first, then generate an interview
-                link.
-              </p>
+            {briefsQuery === undefined ? (
+              <p className="text-sm text-muted-foreground">Loading briefs…</p>
+            ) : briefs.length === 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Interview links are created from a{" "}
+                  <span className="font-medium text-foreground">brief</span>. Add a
+                  brief on the Briefs page, then come back here and use{" "}
+                  <span className="font-medium text-foreground">Create link</span>{" "}
+                  next to that brief.
+                </p>
+                <Button asChild type="button">
+                  <Link href="/briefs">Go to Briefs</Link>
+                </Button>
+              </div>
             ) : (
               briefs.map((brief) => (
                 <div
@@ -120,9 +133,12 @@ export default function InterviewsPage() {
             <CardTitle>Workspace interviews</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {interviews.length === 0 ? (
+            {interviewsQuery === undefined ? (
+              <p className="text-sm text-muted-foreground">Loading interviews…</p>
+            ) : interviews.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No interviews yet.
+                No interviews yet. After you create a link from a brief, it will
+                show up here.
               </p>
             ) : (
               interviews.map((interview) => (
