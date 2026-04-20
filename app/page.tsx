@@ -1407,7 +1407,7 @@ export default function Home() {
           <div className={styles.sectionHead}>
             <div>
               <div className={`${styles.kicker} ${styles.mono}`}>09 — FAQ</div>
-              <h2>Questions people actually ask.</h2>
+              <h2>Frequently asked questions.</h2>
             </div>
           </div>
           <div className={styles.faq}>

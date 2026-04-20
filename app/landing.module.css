@@ -299,7 +299,7 @@ h1.heroTitle .underline {
   margin-bottom: 96px;
   font-size: 14px;
 }
-@media (min-width: 800px) { .compare { grid-template-columns: 1.2fr 1fr 1fr 1fr; } }
+@media (min-width: 800px) { .compare { grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; } }
 .compare > div { background: var(--bg-card); padding: 16px 20px; }
 .compare .head {
   font-family: var(--font-mono); font-size: 11px;
