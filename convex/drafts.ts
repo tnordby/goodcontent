@@ -406,6 +406,39 @@ export const reopenDraftForEdits = mutation({
   },
 });
 
+export const regenerateDraft = mutation({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, { draftId }) => {
+    const user = await loadOrCreateUserForAuth(ctx);
+    const draft = await ctx.db.get(draftId);
+    if (!draft || draft.workspaceId !== user.workspaceId) {
+      throw new Error("Draft not found");
+    }
+    if (draft.status === "generating") {
+      throw new Error("A generation is already in progress");
+    }
+    if (
+      draft.status === "pushed" ||
+      draft.status === "push_pending" ||
+      draft.status === "push_failed"
+    ) {
+      throw new Error("Cannot regenerate a draft in this publish state");
+    }
+    const now = Date.now();
+    await ctx.db.patch(draftId, {
+      status: "generating",
+      contentMarkdown: GENERATING_PLACEHOLDER,
+      updatedAt: now,
+    });
+    const brief = await ctx.db.get(draft.briefId);
+    if (brief) {
+      await ctx.db.patch(brief._id, { phase: "draft", updatedAt: now });
+    }
+    await ctx.scheduler.runAfter(0, internal.drafts.generateDraftContent, { draftId });
+    return { ok: true as const };
+  },
+});
+
 export const completeGuestInterviewFromHttp = internalMutation({
   args: {
     token: v.string(),

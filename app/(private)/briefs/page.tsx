@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { briefPhaseLabel } from "@/lib/brief-phase";
 
 const CONTENT_TYPE_OPTIONS = [
   { value: "blog_post", label: "Blog post" },
@@ -319,7 +320,7 @@ export default function BriefsPage() {
                   <p className="font-medium text-foreground">{brief.title}</p>
                   <p>{brief.topic}</p>
                   <p className="mt-2 text-xs uppercase tracking-wide">
-                    {brief.contentType} · phase: {brief.phase}
+                    {brief.contentType} · {briefPhaseLabel(brief.phase)}
                   </p>
                 </div>
               ))

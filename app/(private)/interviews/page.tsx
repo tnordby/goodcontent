@@ -8,6 +8,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { briefPhaseLabel } from "@/lib/brief-phase";
 
 export default function InterviewsPage() {
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
@@ -112,7 +113,7 @@ export default function InterviewsPage() {
                   <div>
                     <p className="font-medium">{brief.title}</p>
                     <p className="text-xs uppercase text-muted-foreground">
-                      phase: {brief.phase}
+                      {briefPhaseLabel(brief.phase)}
                     </p>
                   </div>
                   <Button

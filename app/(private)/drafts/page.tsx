@@ -14,6 +14,7 @@ export default function DraftsPage() {
   const saveDraft = useMutation(api.drafts.saveDraftContent);
   const approveDraft = useMutation(api.drafts.approveDraft);
   const reopenDraft = useMutation(api.drafts.reopenDraftForEdits);
+  const regenerateDraft = useMutation(api.drafts.regenerateDraft);
   const [localBodies, setLocalBodies] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -76,13 +77,30 @@ export default function DraftsPage() {
     }
   };
 
+  const onRegenerate = async (draftId: Id<"drafts">) => {
+    const id = draftId as string;
+    setBusyId(id);
+    try {
+      await regenerateDraft({ draftId });
+      clearLocal(id);
+      toast.success("Regenerating draft with Claude…");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Regeneration failed",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 md:p-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Drafts</h1>
         <p className="mt-2 text-muted-foreground">
-          Review AI-generated drafts, edit in place, approve when ready for the next
-          pipeline step, or send an approved draft back for more edits.
+          Review AI-generated drafts, edit in place, use Regenerate with AI to run
+          Claude again on the same interview, approve when ready, or send an approved
+          draft back for more edits.
         </p>
       </div>
 
@@ -121,6 +139,11 @@ export default function DraftsPage() {
             const canApprove =
               draft.status === "ready" || draft.status === "edited";
             const canReopen = draft.status === "approved";
+            const canRegenerate =
+              draft.status !== "generating" &&
+              draft.status !== "pushed" &&
+              draft.status !== "push_pending" &&
+              draft.status !== "push_failed";
 
             return (
               <Card key={draft._id}>
@@ -191,6 +214,15 @@ export default function DraftsPage() {
                       variant="outline"
                     >
                       Reopen for edits
+                    </Button>
+                    <Button
+                      disabled={!canRegenerate || isBusy}
+                      onClick={() => onRegenerate(draft._id)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      Regenerate with AI
                     </Button>
                   </div>
                 </CardContent>
