@@ -1,4 +1,12 @@
-import { internalMutation, query, type MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 
@@ -10,37 +18,188 @@ async function hashToken(rawToken: string): Promise<string> {
     .join("");
 }
 
-function buildDraftMarkdown(args: {
+const GENERATING_PLACEHOLDER = [
+  "_Your draft is being generated. This usually takes a few seconds._",
+  "",
+  "You can leave this page open — it will update automatically when ready.",
+].join("\n");
+
+function buildFallbackMarkdown(args: {
   briefTitle: string;
   briefTopic: string;
-  transcript: string;
   outputLanguage: string;
+  transcript: string;
+  reason: string;
 }) {
-  const trimmedTranscript = args.transcript.trim();
+  const t = args.transcript.trim();
   return [
     `# ${args.briefTitle}`,
     "",
-    `> **Topic:** ${args.briefTopic}`,
-    `> **Output language:** ${args.outputLanguage}`,
+    `> **Topic:** ${args.briefTopic} · **Output language:** ${args.outputLanguage}`,
+    "",
+    `> **Draft generation note:** ${args.reason}`,
     "",
     "## Interview transcript (verbatim)",
     "",
-    trimmedTranscript.length > 0 ? trimmedTranscript : "_No transcript provided._",
-    "",
-    "## Draft (MVP scaffold)",
-    "",
-    "This is an MVP placeholder draft generated from the transcript. Replace this section with your real model pipeline.",
-    "",
-    "### Key takeaways",
-    "",
-    "- ...",
-    "- ...",
-    "",
-    "### Next steps",
-    "",
-    "- ...",
+    t.length > 0 ? t : "_No transcript._",
   ].join("\n");
 }
+
+type GenerationBundle = {
+  draft: Doc<"drafts">;
+  brief: Doc<"briefs">;
+  interview: Doc<"interviews">;
+};
+
+async function generateDraftWithOpenAI(
+  bundle: GenerationBundle,
+  apiKey: string,
+): Promise<string> {
+  const model =
+    process.env.OPENAI_DRAFT_MODEL?.trim().replace(/^["']|["']$/g, "") ||
+    "gpt-4.1-mini";
+  const transcript = (bundle.interview.transcript ?? "").slice(0, 60_000);
+  const payload = {
+    contentType: bundle.brief.contentType,
+    title: bundle.brief.title,
+    topic: bundle.brief.topic,
+    toneOfVoice: bundle.brief.toneOfVoice,
+    keywords: bundle.brief.keywords,
+    sources: bundle.brief.sources,
+    customQuestions: bundle.brief.customQuestions,
+    outputLanguage: bundle.brief.outputLanguage,
+    interviewerLanguage: bundle.brief.interviewerLanguage,
+    transcript,
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.45,
+      max_tokens: 8192,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are an expert B2B marketing writer and editor.",
+            "Turn the structured brief and SME interview transcript into a strong first draft.",
+            "",
+            "Rules:",
+            "- Output **only** valid Markdown (no surrounding code fences unless a fenced block is part of the article).",
+            "- Match the requested **outputLanguage** (write the whole draft in that language).",
+            "- Respect **contentType** (blog post vs case study vs email, etc.).",
+            "- Ground claims in the transcript; do not invent customer metrics or quotes that are not implied.",
+            "- Use clear headings, short paragraphs, and scannable lists where appropriate.",
+            "- Include a short suggested **meta description** line as an HTML comment on its own line: <!-- meta: ... --> right after the H1.",
+          ].join("\n"),
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload, null, 2),
+        },
+      ],
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`OpenAI HTTP ${response.status}: ${raw.slice(0, 800)}`);
+  }
+
+  const result = JSON.parse(raw) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = result.choices?.[0]?.message?.content?.trim();
+  if (!content) {
+    throw new Error("OpenAI returned empty content");
+  }
+  return content;
+}
+
+export const getGenerationContext = internalQuery({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, { draftId }) => {
+    const draft = await ctx.db.get(draftId);
+    if (!draft) {
+      return null;
+    }
+    const brief = await ctx.db.get(draft.briefId);
+    const interview = await ctx.db.get(draft.interviewId);
+    if (!brief || !interview) {
+      return null;
+    }
+    return { draft, brief, interview };
+  },
+});
+
+export const applyGeneratedDraft = internalMutation({
+  args: {
+    draftId: v.id("drafts"),
+    contentMarkdown: v.string(),
+  },
+  handler: async (ctx, { draftId, contentMarkdown }) => {
+    const draft = await ctx.db.get(draftId);
+    if (!draft) {
+      return;
+    }
+    await ctx.db.patch(draftId, {
+      contentMarkdown,
+      status: "ready",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const generateDraftContent = internalAction({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, { draftId }) => {
+    const bundle = await ctx.runQuery(internal.drafts.getGenerationContext, {
+      draftId,
+    });
+    if (!bundle) {
+      return;
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    const transcript = bundle.interview.transcript ?? "";
+
+    let markdown: string;
+    if (!apiKey) {
+      markdown = buildFallbackMarkdown({
+        briefTitle: bundle.brief.title,
+        briefTopic: bundle.brief.topic,
+        outputLanguage: bundle.brief.outputLanguage,
+        transcript,
+        reason:
+          "OPENAI_API_KEY is not set on this Convex deployment. Set it in Convex → Settings → Environment variables, then re-submit or regenerate.",
+      });
+    } else {
+      try {
+        markdown = await generateDraftWithOpenAI(bundle, apiKey);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown generation error";
+        markdown = buildFallbackMarkdown({
+          briefTitle: bundle.brief.title,
+          briefTopic: bundle.brief.topic,
+          outputLanguage: bundle.brief.outputLanguage,
+          transcript,
+          reason: message,
+        });
+      }
+    }
+
+    await ctx.runMutation(internal.drafts.applyGeneratedDraft, {
+      draftId,
+      contentMarkdown: markdown,
+    });
+  },
+});
 
 async function completeGuestInterviewForToken(
   ctx: MutationCtx,
@@ -95,30 +254,25 @@ async function completeGuestInterviewForToken(
     .filter((q) => q.eq(q.field("interviewId"), interview._id))
     .first();
 
-  const markdown = buildDraftMarkdown({
-    briefTitle: brief.title,
-    briefTopic: brief.topic,
-    transcript: cleanedTranscript,
-    outputLanguage: brief.outputLanguage,
-  });
-
+  let draftId: Id<"drafts">;
   if (existingDraft) {
+    draftId = existingDraft._id;
     await ctx.db.patch(existingDraft._id, {
       title: brief.title,
-      contentMarkdown: markdown,
+      contentMarkdown: GENERATING_PLACEHOLDER,
       outputLanguage: brief.outputLanguage,
-      status: "ready",
+      status: "generating",
       updatedAt: now,
     });
   } else {
-    await ctx.db.insert("drafts", {
+    draftId = await ctx.db.insert("drafts", {
       workspaceId: interview.workspaceId,
       briefId: brief._id,
       interviewId: interview._id,
       title: brief.title,
-      contentMarkdown: markdown,
+      contentMarkdown: GENERATING_PLACEHOLDER,
       outputLanguage: brief.outputLanguage,
-      status: "ready",
+      status: "generating",
       createdAt: now,
       updatedAt: now,
     });
@@ -127,6 +281,10 @@ async function completeGuestInterviewForToken(
   await ctx.db.patch(brief._id, {
     phase: "draft",
     updatedAt: now,
+  });
+
+  await ctx.scheduler.runAfter(0, internal.drafts.generateDraftContent, {
+    draftId,
   });
 
   return { ok: true as const };

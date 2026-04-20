@@ -33,8 +33,10 @@ export default function DraftsPage() {
             <CardTitle>No drafts yet</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Complete a guest interview to generate the first draft (MVP: placeholder markdown
-            scaffold + verbatim transcript).
+            Complete a guest interview to generate the first draft. Drafts are produced with
+            OpenAI from the brief and transcript (set{" "}
+            <code className="rounded bg-muted px-1">OPENAI_API_KEY</code> on your Convex
+            deployment).
           </CardContent>
         </Card>
       ) : (
@@ -54,6 +56,12 @@ export default function DraftsPage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-2">
+                {draft.status === "generating" ? (
+                  <p className="text-sm text-muted-foreground">
+                    Draft is still generating… refresh in a few seconds if this does not
+                    update.
+                  </p>
+                ) : null}
                 <Textarea readOnly value={draft.contentMarkdown} rows={16} className="font-mono text-xs" />
               </CardContent>
             </Card>
