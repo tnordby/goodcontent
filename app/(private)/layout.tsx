@@ -8,6 +8,8 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge } from "@/components/credit-badge";
 
+export const dynamic = "force-dynamic";
+
 export default function Page({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
