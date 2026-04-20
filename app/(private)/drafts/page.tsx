@@ -102,8 +102,8 @@ export default function DraftsPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Complete a guest interview to generate the first draft. Drafts are produced
-            with OpenAI from the brief and transcript (set{" "}
-            <code className="rounded bg-muted px-1">OPENAI_API_KEY</code> on your Convex
+            with Anthropic (Claude) from the brief and transcript (set{" "}
+            <code className="rounded bg-muted px-1">ANTHROPIC_API_KEY</code> on your Convex
             deployment).
           </CardContent>
         </Card>

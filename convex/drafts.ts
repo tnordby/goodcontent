@@ -52,13 +52,28 @@ type GenerationBundle = {
   interview: Doc<"interviews">;
 };
 
-async function generateDraftWithOpenAI(
+function draftSystemPrompt() {
+  return [
+    "You are an expert B2B marketing writer and editor.",
+    "Turn the structured brief and SME interview transcript into a strong first draft.",
+    "",
+    "Rules:",
+    "- Output **only** valid Markdown (no surrounding code fences unless a fenced block is part of the article).",
+    "- Match the requested **outputLanguage** (write the whole draft in that language).",
+    "- Respect **contentType** (blog post vs case study vs email, etc.).",
+    "- Ground claims in the transcript; do not invent customer metrics or quotes that are not implied.",
+    "- Use clear headings, short paragraphs, and scannable lists where appropriate.",
+    "- Include a short suggested **meta description** line as an HTML comment on its own line: <!-- meta: ... --> right after the H1.",
+  ].join("\n");
+}
+
+async function generateDraftWithAnthropic(
   bundle: GenerationBundle,
   apiKey: string,
 ): Promise<string> {
   const model =
-    process.env.OPENAI_DRAFT_MODEL?.trim().replace(/^["']|["']$/g, "") ||
-    "gpt-4.1-mini";
+    process.env.ANTHROPIC_DRAFT_MODEL?.trim().replace(/^["']|["']$/g, "") ||
+    "claude-3-5-sonnet-20241022";
   const transcript = (bundle.interview.transcript ?? "").slice(0, 60_000);
   const payload = {
     contentType: bundle.brief.contentType,
@@ -73,32 +88,19 @@ async function generateDraftWithOpenAI(
     transcript,
   };
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model,
-      temperature: 0.45,
       max_tokens: 8192,
+      temperature: 0.45,
+      system: draftSystemPrompt(),
       messages: [
-        {
-          role: "system",
-          content: [
-            "You are an expert B2B marketing writer and editor.",
-            "Turn the structured brief and SME interview transcript into a strong first draft.",
-            "",
-            "Rules:",
-            "- Output **only** valid Markdown (no surrounding code fences unless a fenced block is part of the article).",
-            "- Match the requested **outputLanguage** (write the whole draft in that language).",
-            "- Respect **contentType** (blog post vs case study vs email, etc.).",
-            "- Ground claims in the transcript; do not invent customer metrics or quotes that are not implied.",
-            "- Use clear headings, short paragraphs, and scannable lists where appropriate.",
-            "- Include a short suggested **meta description** line as an HTML comment on its own line: <!-- meta: ... --> right after the H1.",
-          ].join("\n"),
-        },
         {
           role: "user",
           content: JSON.stringify(payload, null, 2),
@@ -109,17 +111,18 @@ async function generateDraftWithOpenAI(
 
   const raw = await response.text();
   if (!response.ok) {
-    throw new Error(`OpenAI HTTP ${response.status}: ${raw.slice(0, 800)}`);
+    throw new Error(`Anthropic HTTP ${response.status}: ${raw.slice(0, 800)}`);
   }
 
   const result = JSON.parse(raw) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    content?: Array<{ type?: string; text?: string }>;
   };
-  const content = result.choices?.[0]?.message?.content?.trim();
-  if (!content) {
-    throw new Error("OpenAI returned empty content");
+  const textBlock = result.content?.find((c) => c.type === "text" && c.text);
+  const text = textBlock?.text?.trim();
+  if (!text) {
+    throw new Error("Anthropic returned empty content");
   }
-  return content;
+  return text;
 }
 
 export const getGenerationContext = internalQuery({
@@ -166,7 +169,7 @@ export const generateDraftContent = internalAction({
       return;
     }
 
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
     const transcript = bundle.interview.transcript ?? "";
 
     let markdown: string;
@@ -177,11 +180,11 @@ export const generateDraftContent = internalAction({
         outputLanguage: bundle.brief.outputLanguage,
         transcript,
         reason:
-          "OPENAI_API_KEY is not set on this Convex deployment. Set it in Convex → Settings → Environment variables, then re-submit or regenerate.",
+          "ANTHROPIC_API_KEY is not set on this Convex deployment. Set it in Convex → Settings → Environment variables, then re-submit the interview or regenerate.",
       });
     } else {
       try {
-        markdown = await generateDraftWithOpenAI(bundle, apiKey);
+        markdown = await generateDraftWithAnthropic(bundle, apiKey);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unknown generation error";
