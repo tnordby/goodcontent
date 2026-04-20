@@ -1,0 +1,372 @@
+---
+description: GoodContent - System Architecture
+globs: ["**/*.ts", "**/*.tsx", "**/*.js"]
+alwaysApply: true
+---
+
+# GoodContent — Architecture
+
+## Product Overview
+
+GoodContent is a HubSpot-native SaaS app that replaces human content writers with an AI interviewer. Marketing teams create content briefs, share a guest link to a subject matter expert or customer, and the AI conducts an async voice interview. The transcript is synthesised into a polished draft and pushed directly to HubSpot.
+
+Every piece of content progresses through seven codified phases: **Brief → Research → Outline → Interview → Draft → Edit → Review**. See `product.mdc` for phase semantics.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router, TypeScript) |
+| Database | Convex (real-time, serverless, TypeScript-native) |
+| Auth | Clerk (HubSpot OAuth for workspace login, JWT guest tokens for interview links) |
+| Voice Synthesis (TTS) | ElevenLabs — Flash v2.5 model (~75ms latency, 32+ languages) |
+| Speech-to-Text (STT) | Deepgram Nova-3 — WebSocket streaming, real-time transcription |
+| AI / LLM | Anthropic Claude API (claude-sonnet-4-20250514) |
+| Styling | Tailwind CSS + shadcn/ui |
+| Billing | Polar.sh (credit-based subscriptions) |
+| File Storage | Cloudflare R2 (audio recordings, exported documents) |
+| HubSpot Integration | HubSpot API v3 — CMS, Blog, Marketing |
+| Error Monitoring | Sentry |
+| Email | Resend |
+
+---
+
+## Application Structure
+
+```
+/app
+  /(auth)            # Login, HubSpot OAuth callback
+  /(dashboard)       # Authenticated workspace
+    /briefs          # Brief management + phase progress
+    /research        # Research phase UI (review + approve)
+    /outlines        # Outline phase UI (edit + approve)
+    /interviews      # Interview sessions & recordings
+    /drafts          # Generated content drafts (Edit + Review phases)
+    /settings        # Workspace, HubSpot connection, billing
+  /interview/[token] # Public guest interview room (no login required)
+  /api
+    /hubspot         # HubSpot OAuth + webhook handlers
+    /webhooks        # Polar.sh billing webhooks
+    /research        # Research generation endpoints
+    /interview       # Interview session management
+    /content         # Content generation endpoints
+
+/convex
+  /schema.ts         # Full database schema
+  /workspaces.ts
+  /briefs.ts
+  /research.ts
+  /outlines.ts
+  /interviews.ts
+  /drafts.ts
+  /credits.ts
+  /users.ts
+
+/lib
+  /elevenlabs.ts     # TTS client
+  /deepgram.ts       # STT WebSocket client
+  /anthropic.ts      # Claude API client
+  /hubspot.ts        # HubSpot API client
+  /polar.ts          # Polar.sh billing client
+  /briefTemplates.ts # Per-content-type default brief templates
+
+/components
+  /interview         # Guest interview room UI
+  /brief             # Brief builder UI
+  /phaseTracker      # Visible phase progress indicator
+  /editor            # Draft editor UI (Edit phase)
+  /review            # Review approval UI
+  /hubspot           # HubSpot push / bulk upload UI
+```
+
+---
+
+## Core Data Models (Convex Schema)
+
+```typescript
+// Workspaces — one per HubSpot portal
+workspaces: {
+  hubspotPortalId: string
+  name: string
+  creditBalance: number
+  polarSubscriptionId: string
+  plan: "starter" | "growth" | "agency"
+  autoApproveReview: boolean  // Solo workflow setting
+  createdAt: number
+}
+
+// Users — unlimited seats per workspace
+users: {
+  workspaceId: Id<"workspaces">
+  clerkUserId: string
+  email: string
+  role: "admin" | "member"
+  createdAt: number
+}
+
+// Content Briefs — the parent entity for a piece of content.
+// Phase progresses forward only; each sub-entity (research, interview, draft) tracks its own internal status.
+briefs: {
+  workspaceId: Id<"workspaces">
+  createdBy: Id<"users">
+  contentType: "blog_post" | "case_study" | "customer_story" | "landing_page" | "email" | "guide" | "sales_collateral" | "web_page"
+  title: string
+  topic: string
+  keywords: string[]
+  toneOfVoice: string
+  formattingRules?: string
+  sources: string[]
+  customQuestions: string[]
+
+  // Language — two independent fields
+  interviewerLanguage: string   // "en", "no", "sv", "de", "es" — drives Deepgram + ElevenLabs
+  outputLanguage: string        // Language of the final written draft — drives Claude generation
+
+  // Phase tracking
+  phase: "brief" | "research" | "outline" | "interview" | "draft" | "edit" | "review" | "pushed"
+  briefReadyAt?: number
+  researchApprovedAt?: number
+  outlineApprovedAt?: number
+  reviewApprovedBy?: Id<"users">
+  reviewApprovedAt?: number
+
+  createdAt: number
+}
+
+// Research notes — generated in Research phase, approved before Outline
+research: {
+  briefId: Id<"briefs">
+  workspaceId: Id<"workspaces">
+  notes: string               // Markdown — key angles, SERP findings, competitor gaps, source summaries
+  keywordAnalysis?: string
+  status: "generating" | "ready" | "approved"
+  creditsConsumed: number
+  createdAt: number
+}
+
+// Outlines — H2/H3 structure approved before Interview
+outlines: {
+  briefId: Id<"briefs">
+  workspaceId: Id<"workspaces">
+  structure: string           // Markdown outline
+  status: "generating" | "ready" | "approved"
+  createdAt: number
+}
+
+// Interview Sessions
+interviews: {
+  briefId: Id<"briefs">
+  workspaceId: Id<"workspaces">
+  guestTokenHash: string      // Hashed — raw token returned once at creation
+  guestEmail?: string
+  guestName?: string
+  consentedAt?: number        // GDPR consent timestamp
+  status: "pending" | "in_progress" | "completed" | "expired"
+  audioStorageKey?: string    // Cloudflare R2 key
+  transcript?: string
+  creditsConsumed: number
+  interviewerLanguage: string // Copied from brief at link generation time
+  startedAt?: number
+  completedAt?: number
+  expiresAt: number
+}
+
+// Generated Drafts — includes SEO/AEO metadata
+drafts: {
+  briefId: Id<"briefs">
+  interviewId: Id<"interviews">
+  workspaceId: Id<"workspaces">
+  content: string             // Markdown / HTML
+  title: string
+  metaDescription?: string
+  slug?: string
+  tocEnabled: boolean
+  aeoEnabled: boolean
+  schemaMarkup?: string       // JSON-LD (Article / FAQ / HowTo)
+  internalLinkSuggestions: { anchorText: string; targetDraftId: Id<"drafts"> }[]
+  status: "generating" | "ready" | "edited" | "approved" | "pushed_to_hubspot"
+  hubspotContentId?: string
+  hubspotContentType?: string
+  outputLanguage: string
+  createdAt: number
+}
+
+// Credit Ledger
+creditTransactions: {
+  workspaceId: Id<"workspaces">
+  type: "purchase" | "research" | "interview" | "generation" | "refund"
+  amount: number              // negative = consumed
+  referenceId?: string        // researchId, interviewId, or draftId
+  description: string
+  createdAt: number
+}
+```
+
+---
+
+## Key Flows
+
+### 1. Brief Creation (Phase: Brief)
+1. User picks `contentType` → `briefTemplates.ts` supplies defaults
+2. User edits title, topic, keywords, tone, formatting rules
+3. User picks `interviewerLanguage` and `outputLanguage` (may differ)
+4. User marks brief `ready` → `phase` transitions to `research`
+
+### 2. Research (Phase: Research)
+1. Claude reviews `sources[]`, runs keyword/SERP research, generates research notes
+2. Notes stored in `research` table, rendered for user review
+3. User edits or approves → `phase` transitions to `outline`
+4. Credits deducted: `CREDIT_COST_RESEARCH`
+
+### 3. Outline (Phase: Outline)
+1. Claude proposes H2/H3 outline from brief + approved research
+2. User edits and approves → `phase` transitions to `interview`
+3. Interview questions finalised at this step using approved outline
+
+### 4. Interview Link Generation & Guest Room (Phase: Interview)
+1. System generates a cryptographically random guest token (UUID), stores hash in `interviews.guestTokenHash`
+2. Raw token returned once to user to share via `https://goodcontent.ai/interview/[token]`
+3. Guest opens link, sees consent screen, consents → recording begins
+4. Deepgram WebSocket opens for real-time STT in `interviewerLanguage`
+5. ElevenLabs Flash v2.5 voices questions in `interviewerLanguage`
+6. Claude monitors transcript, injects dynamic follow-ups (max 3 per question)
+7. Audio streamed to Cloudflare R2; transcript stored in Convex on completion
+8. `phase` transitions to `draft`
+9. Credits deducted per minute: `CREDIT_COST_INTERVIEW_PER_MINUTE`
+
+### 5. Draft Generation (Phase: Draft)
+1. Transcript + brief + research + approved outline + formatting rules sent to Claude
+2. Claude generates full draft in `outputLanguage`
+3. Draft built with SEO (meta, slug, schema) and AEO (FAQ, structured answers) features
+4. Internal link suggestions generated against already-pushed drafts in the workspace
+5. Draft stored; `phase` transitions to `edit`
+6. Credits deducted: `CREDIT_COST_GENERATION`
+
+### 6. Edit (Phase: Edit)
+1. User edits inline, regenerates sections as needed, toggles SEO/AEO features
+2. User marks draft `edited` → `phase` transitions to `review`
+3. No credits consumed for editing; section regeneration consumes per-generation credit
+
+### 7. Review (Phase: Review)
+1. Admin or creator reviews final draft
+2. If `workspace.autoApproveReview === true` and reviewer is creator, auto-approved
+3. On approval → `phase` transitions to `pushed` and HubSpot push is enabled
+
+### 8. HubSpot Push
+1. User selects draft(s) and clicks "Push to HubSpot"
+2. App maps content type to HubSpot API endpoint
+3. Internal link suggestions resolved to HubSpot URLs (if target already pushed)
+4. HubSpot API v3 call creates/updates content
+5. Supports bulk upload for multiple approved drafts at once
+
+---
+
+## Credit Model
+
+| Action | Credit Cost |
+|---|---|
+| Research (per brief) | 20 credits |
+| Interview (per minute) | 10 credits |
+| Content generation (per piece) | 50 credits |
+| Section regeneration (Edit phase) | 50 credits |
+| Bulk export (per 5 pieces) | 10 credits |
+
+Plans provide monthly credit allocation. Unused credits roll over one month.
+
+---
+
+## Multi-Language Support
+
+- `interviewerLanguage` drives STT model language config (Deepgram supports 30+ languages)
+- `interviewerLanguage` also drives TTS voice selection (ElevenLabs Multilingual v2 for non-English)
+- `outputLanguage` is written explicitly into the Claude system prompt
+- The two can differ — cross-language workflows are first-class
+- UI defaults to English; Norwegian prioritised as secondary
+
+---
+
+## HubSpot Content Type Mapping
+
+| GoodContent Type | HubSpot API Endpoint |
+|---|---|
+| Blog Post | /cms/v3/blogs/posts |
+| Landing Page | /cms/v3/pages/landing-pages |
+| Web Page | /cms/v3/pages/site-pages |
+| Email | /marketing/v3/emails |
+| Case Study / Guide | Blog Post with custom tag |
+
+### HubSpot Draft Creation Contract (MVP Default)
+
+Default publish flow is "create draft in HubSpot, review there, then publish from HubSpot UI."
+
+Create payload fields to support in the HubSpot adapter:
+- `contentGroupId` (required blog target)
+- `name` (title)
+- `postBody` (HTML)
+- `metaDescription`
+- `slug`
+- `featuredImage`
+- `blogAuthorId`
+- `tagIds`
+- `state: "DRAFT"` (default)
+
+Auth model:
+- Use HubSpot OAuth with content scopes for multi-tenant workspaces
+- Do not rely on private app tokens for tenant-connected production flows
+
+### HubSpot Operational Gotchas
+
+- `postBody` must be clean semantic HTML to avoid template/module rendering issues
+- `blogAuthorId` must exist in the target portal (onboarding should fetch/select or create author)
+- `tagIds` should be resolved against existing portal tags (with optional create flow)
+- Featured images should be uploaded to HubSpot File Manager or use a stable public URL
+
+### Integration Expansion
+
+HubSpot remains the deepest integration target for MVP and early GTM. Additional CMS connectors (for example WordPress) should be implemented behind a common publish adapter interface so core draft generation logic remains unchanged across destinations.
+
+---
+
+## Environment Variables
+
+```
+# Convex
+CONVEX_DEPLOYMENT=
+NEXT_PUBLIC_CONVEX_URL=
+
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+
+# HubSpot
+HUBSPOT_CLIENT_ID=
+HUBSPOT_CLIENT_SECRET=
+HUBSPOT_REDIRECT_URI=
+
+# ElevenLabs
+ELEVENLABS_API_KEY=
+
+# Deepgram
+DEEPGRAM_API_KEY=
+
+# Anthropic
+ANTHROPIC_API_KEY=
+
+# Polar.sh
+POLAR_ACCESS_TOKEN=
+POLAR_WEBHOOK_SECRET=
+
+# Cloudflare R2
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+
+# Sentry
+SENTRY_DSN=
+
+# Resend
+RESEND_API_KEY=
+```

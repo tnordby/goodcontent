@@ -1,0 +1,231 @@
+---
+description: GoodContent AI - Coding Standards
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+# GoodContent AI — Coding Standards
+
+## General Principles
+
+- **TypeScript everywhere** — no `any`, no implicit types. Always infer or explicitly type.
+- **Server Components by default** — only use `"use client"` when you need interactivity, hooks, or browser APIs.
+- **Convex functions are the backend** — never call the database directly from API routes. All DB logic lives in `/convex`.
+- **Small, focused files** — one concern per file. If a file exceeds ~200 lines, split it.
+- **Named exports only** — no default exports except for Next.js pages/layouts.
+- **No hardcoded strings** — all content types, languages, credit costs in `/lib/constants.ts`.
+
+---
+
+## File & Folder Conventions
+
+```
+/app/(dashboard)/briefs/page.tsx     # Page (Server Component)
+/app/(dashboard)/briefs/_components/ # Page-level components (not reused)
+/components/brief/BriefCard.tsx      # Shared components
+/convex/briefs.ts                    # All brief DB queries/mutations
+/lib/hubspot.ts                      # External service clients
+/lib/constants.ts                    # Enums, maps, credit costs
+/hooks/useBrief.ts                   # Client-side hooks
+/types/index.ts                      # Shared TypeScript types
+```
+
+---
+
+## TypeScript
+
+```typescript
+// ✅ Good — explicit return type, typed params
+export async function generateQuestions(
+  brief: Brief,
+  contentType: ContentType
+): Promise<string[]> { ... }
+
+// ❌ Bad — implicit any, no return type
+export async function generateQuestions(brief, contentType) { ... }
+
+// ✅ Use Convex Id types for references
+import { Id } from "../convex/_generated/dataModel"
+type BriefId = Id<"briefs">
+
+// ✅ Use discriminated unions for status
+type InterviewStatus =
+  | { status: "pending" }
+  | { status: "in_progress"; startedAt: number }
+  | { status: "completed"; transcript: string; completedAt: number }
+  | { status: "expired" }
+```
+
+---
+
+## Convex Conventions
+
+```typescript
+// ✅ Always validate auth in mutations and sensitive queries
+export const createBrief = mutation({
+  args: { title: v.string(), contentType: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error("Unauthenticated")
+    // ...
+  }
+})
+
+// ✅ Use internal functions for sensitive logic
+export const deductCredits = internalMutation({
+  args: { workspaceId: v.id("workspaces"), amount: v.number() },
+  handler: async (ctx, { workspaceId, amount }) => {
+    // credit deduction logic — not callable from client
+  }
+})
+
+// ✅ Always index fields you query by
+// In schema.ts:
+briefs: defineTable({
+  workspaceId: v.id("workspaces"),
+  status: v.string(),
+  createdAt: v.number(),
+}).index("by_workspace", ["workspaceId"])
+  .index("by_workspace_status", ["workspaceId", "status"])
+```
+
+---
+
+## Next.js App Router
+
+```typescript
+// ✅ Server Component — fetch from Convex server-side
+export default async function BriefsPage() {
+  const briefs = await fetchQuery(api.briefs.listByWorkspace, { workspaceId })
+  return <BriefList briefs={briefs} />
+}
+
+// ✅ Client Component — only when needed
+"use client"
+export function InterviewRoom({ token }: { token: string }) {
+  const interview = useQuery(api.interviews.getByToken, { token })
+  // ... realtime subscriptions
+}
+
+// ✅ Route handlers — thin, delegate to Convex or lib functions
+// /app/api/hubspot/callback/route.ts
+export async function GET(req: Request) {
+  const code = new URL(req.url).searchParams.get("code")
+  await exchangeHubSpotCode(code) // lib/hubspot.ts
+  redirect("/dashboard/settings")
+}
+```
+
+---
+
+## Component Conventions
+
+```typescript
+// ✅ Props interface always defined above component
+interface BriefCardProps {
+  brief: Brief
+  onEdit: (id: Id<"briefs">) => void
+}
+
+export function BriefCard({ brief, onEdit }: BriefCardProps) {
+  return (...)
+}
+
+// ✅ Use shadcn/ui primitives — never roll custom UI for standard elements
+import { Button } from "@/components/ui/button"
+import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select"
+
+// ✅ Tailwind only — no inline styles, no CSS modules
+// ✅ Use cn() utility for conditional classes
+import { cn } from "@/lib/utils"
+<div className={cn("rounded-lg p-4", isActive && "border-2 border-primary")} />
+```
+
+---
+
+## Error Handling
+
+```typescript
+// ✅ Always handle async errors explicitly
+const result = await generateDraft(brief).catch((err) => {
+  Sentry.captureException(err)
+  return null
+})
+if (!result) return <ErrorState message="Draft generation failed" />
+
+// ✅ Convex mutations throw on failure — wrap in try/catch in client
+try {
+  await createBrief({ title, contentType })
+} catch (err) {
+  toast.error("Failed to create brief")
+}
+
+// ✅ Never swallow errors silently
+// ❌ Bad
+try { ... } catch (e) {}
+```
+
+---
+
+## API Clients (ElevenLabs, Deepgram, Anthropic)
+
+```typescript
+// ✅ All API clients instantiated in /lib — never inline
+// lib/elevenlabs.ts
+import { ElevenLabsClient } from "elevenlabs"
+export const elevenlabs = new ElevenLabsClient({
+  apiKey: process.env.ELEVENLABS_API_KEY!
+})
+
+// ✅ Always use Flash v2.5 for real-time interview TTS
+export async function synthesiseSpeech(text: string, language: string) {
+  return elevenlabs.textToSpeech.convert(VOICE_ID, {
+    text,
+    model_id: "eleven_flash_v2_5",
+    output_format: "mp3_44100_128"
+  })
+}
+
+// ✅ Deepgram — always use streaming WebSocket for live interviews
+// lib/deepgram.ts
+import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk"
+export const deepgram = createClient(process.env.DEEPGRAM_API_KEY!)
+```
+
+---
+
+## Naming Conventions
+
+| Thing | Convention | Example |
+|---|---|---|
+| Components | PascalCase | `BriefCard`, `InterviewRoom` |
+| Hooks | camelCase + use prefix | `useBrief`, `useCredits` |
+| Convex functions | camelCase | `createBrief`, `listInterviews` |
+| API routes | kebab-case folders | `/api/hubspot-callback` |
+| Constants | SCREAMING_SNAKE_CASE | `CREDIT_COST_PER_MINUTE` |
+| Types/Interfaces | PascalCase | `Brief`, `InterviewSession` |
+| Env vars | SCREAMING_SNAKE_CASE | `ELEVENLABS_API_KEY` |
+
+---
+
+## Commit Convention
+
+```
+feat: add dynamic follow-up question generation
+fix: correct credit deduction race condition
+chore: update Convex schema for draft status
+refactor: extract HubSpot content mapper to lib
+docs: update architecture with R2 storage flow
+```
+
+---
+
+## What NOT to Do
+
+- ❌ Never expose API keys client-side
+- ❌ Never call external APIs directly from Convex functions (use HTTP actions instead)
+- ❌ Never store audio blobs in Convex — use Cloudflare R2
+- ❌ Never bypass credit checks — always deduct via `internalMutation`
+- ❌ Never use `router.refresh()` when a Convex `useQuery` reactive subscription will do
+- ❌ Never hardcode HubSpot portal IDs or content IDs

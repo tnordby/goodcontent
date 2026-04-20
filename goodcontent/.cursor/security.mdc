@@ -1,0 +1,222 @@
+---
+description: GoodContent AI - Security & GDPR
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+# GoodContent AI — Security & GDPR
+
+## Core Security Principles
+
+1. **Never trust the client** — all sensitive logic in Convex internal functions or server-side API routes
+2. **Least privilege** — each integration (HubSpot, Deepgram, ElevenLabs) scoped to minimum required permissions
+3. **Data minimisation** — collect only what is needed for the product to function
+4. **Fail closed** — if auth or credit check fails, deny the action
+
+---
+
+## Authentication
+
+### Authenticated Users (Dashboard)
+- Auth handled by **Clerk**
+- Convex validates Clerk JWT on every mutation and sensitive query
+- Session tokens never stored in `localStorage` — Clerk manages via httpOnly cookies
+- Always verify workspace membership before returning any workspace data:
+
+```typescript
+export const getBrief = query({
+  args: { briefId: v.id("briefs") },
+  handler: async (ctx, { briefId }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error("Unauthenticated")
+
+    const brief = await ctx.db.get(briefId)
+    if (!brief) throw new Error("Not found")
+
+    // Critical: verify caller belongs to this workspace
+    const user = await getUser(ctx, identity.subject)
+    if (user.workspaceId !== brief.workspaceId) throw new Error("Forbidden")
+
+    return brief
+  }
+})
+```
+
+### Guest Interview Links
+- Token = cryptographically random UUID (use `crypto.randomUUID()`)
+- Stored hashed in Convex — raw token only returned once at creation
+- Validated on every interview API request
+- Expires server-side — client expiry check is UX only, never security
+- Single-use: token status set to `in_progress` on first WebSocket connection
+- Expired or used tokens return 403 — no information leakage
+
+```typescript
+// ✅ Generate token
+const rawToken = crypto.randomUUID()
+// Store hash in DB, return raw token to user once
+
+// ✅ Validate token on interview request
+const hashedToken = await hashToken(rawToken)
+const interview = await ctx.db
+  .query("interviews")
+  .withIndex("by_token", q => q.eq("guestTokenHash", hashedToken))
+  .first()
+if (!interview || interview.status === "expired" || interview.expiresAt < Date.now()) {
+  throw new Error("Invalid or expired interview link")
+}
+```
+
+---
+
+## HubSpot OAuth Security
+
+- OAuth tokens stored in Convex — never in client state or `localStorage`
+- Access tokens encrypted at rest using a server-side key before storage
+- Refresh tokens rotated on every use
+- OAuth state parameter validated on callback to prevent CSRF
+- Scopes requested — minimum required:
+
+```
+crm.objects.contacts.read
+content
+```
+
+- Token refresh logic:
+
+```typescript
+async function getValidHubSpotToken(workspaceId: Id<"workspaces">) {
+  const connection = await getHubSpotConnection(workspaceId)
+  if (isExpired(connection.accessToken)) {
+    return await refreshHubSpotToken(connection.refreshToken)
+  }
+  return connection.accessToken
+}
+```
+
+---
+
+## API Key Management
+
+- All API keys in environment variables — never in code or Convex DB
+- Validated at app startup — crash loudly if missing in production
+- Rotation: all keys must be rotatable without code changes
+- Never log API keys — Sentry scrubs sensitive fields
+
+```typescript
+// ✅ Startup validation
+const requiredEnvVars = [
+  "ELEVENLABS_API_KEY",
+  "DEEPGRAM_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "POLAR_WEBHOOK_SECRET",
+  "HUBSPOT_CLIENT_SECRET",
+]
+requiredEnvVars.forEach(key => {
+  if (!process.env[key]) throw new Error(`Missing required env var: ${key}`)
+})
+```
+
+---
+
+## Polar.sh Webhook Security
+
+```typescript
+// ✅ Always verify webhook signature
+export async function POST(req: Request) {
+  const payload = await req.text()
+  const signature = req.headers.get("webhook-signature")
+  const isValid = await verifyPolarWebhook(payload, signature, process.env.POLAR_WEBHOOK_SECRET!)
+  if (!isValid) return new Response("Forbidden", { status: 403 })
+  // process webhook
+}
+```
+
+---
+
+## Rate Limiting
+
+Apply rate limiting on these routes to prevent abuse:
+
+| Route | Limit |
+|---|---|
+| `POST /api/interview/start` | 5 starts per token per hour |
+| `GET /interview/[token]` | 30 requests per IP per minute |
+| `POST /api/content/generate` | 10 generations per workspace per hour |
+| `POST /api/hubspot/push` | 20 pushes per workspace per hour |
+
+Use Vercel's built-in rate limiting or `@upstash/ratelimit` with Upstash Redis.
+
+---
+
+## Cloudflare R2 Audio Storage
+
+- Audio recordings stored in R2 — never in Convex or served directly
+- R2 bucket is **private** — no public access
+- Serve audio via **signed URLs** with 1-hour expiry:
+
+```typescript
+export async function getSignedAudioUrl(storageKey: string): Promise<string> {
+  return r2Client.getSignedUrl("getObject", {
+    Bucket: process.env.R2_BUCKET_NAME!,
+    Key: storageKey,
+    Expires: 3600, // 1 hour
+  })
+}
+```
+
+- Bucket CORS configured to allow only `goodcontent.ai` origin
+- Audio deleted from R2 after 90 days (lifecycle rule) unless workspace opts into retention
+
+---
+
+## GDPR Compliance
+
+### Data Collected
+
+| Data | Source | Stored | Purpose |
+|---|---|---|---|
+| Workspace user email | Clerk | Convex | Auth, notifications |
+| Guest name (optional) | Interview form | Convex | Context only |
+| Guest email (optional) | Interview form | Convex | Thank-you email |
+| Interview audio | Deepgram stream | Cloudflare R2 | Transcript generation |
+| Interview transcript | Deepgram/Claude | Convex | Content generation |
+| HubSpot OAuth tokens | OAuth flow | Convex | CRM integration |
+
+### Guest Data Rules (GDPR)
+- Guests are informed of recording **before** interview starts — consent screen required
+- Consent logged with timestamp in `interviews` table
+- Guests can request deletion — audio and transcript deleted on request
+- Guest data never shared with third parties beyond processing (Deepgram, Anthropic)
+- Deepgram called with `diarize=false` for single-speaker interviews — minimal data
+
+### Data Processing Agreements
+Required DPAs with:
+- Anthropic (Claude API)
+- Deepgram (STT)
+- ElevenLabs (TTS)
+- Convex (Database)
+- Cloudflare (R2 Storage)
+
+### Data Residency
+- Convex deployment: EU region preferred for Norwegian/European customers
+- R2 bucket: EU region (`eu-west-1` or `eu-central-1`)
+- Deepgram: EU endpoint (`api.eu.deepgram.com`) when processing EU interviews
+
+### Retention Policy
+- Audio recordings: deleted after 90 days (R2 lifecycle rule)
+- Transcripts: retained while workspace is active; deleted on workspace cancellation + 30 days
+- User data: deleted within 30 days of account deletion request
+- Credit transaction ledger: retained 7 years (financial records requirement)
+
+---
+
+## What Never to Do
+
+- ❌ Never log interview transcripts to console or Sentry breadcrumbs
+- ❌ Never store raw audio in Convex — R2 only
+- ❌ Never return another workspace's data — always filter by `workspaceId`
+- ❌ Never expose HubSpot access/refresh tokens to the client
+- ❌ Never skip webhook signature verification (Polar, HubSpot)
+- ❌ Never use guest token as plain text in DB — always hash before storing
+- ❌ Never allow credits to go negative without blocking the action
+- ❌ Never collect guest PII beyond what the brief requires
