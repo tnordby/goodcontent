@@ -12,6 +12,7 @@ import type * as briefs from "../briefs.js";
 import type * as characters_actions from "../characters/actions.js";
 import type * as characters_mutations from "../characters/mutations.js";
 import type * as characters_queries from "../characters/queries.js";
+import type * as drafts from "../drafts.js";
 import type * as http from "../http.js";
 import type * as image_generations_actions from "../image_generations/actions.js";
 import type * as image_generations_mutations from "../image_generations/mutations.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   "characters/actions": typeof characters_actions;
   "characters/mutations": typeof characters_mutations;
   "characters/queries": typeof characters_queries;
+  drafts: typeof drafts;
   http: typeof http;
   "image_generations/actions": typeof image_generations_actions;
   "image_generations/mutations": typeof image_generations_mutations;

@@ -14,11 +14,21 @@ export const listByCurrentWorkspace = query({
   args: {},
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
-    return await ctx.db
+    const interviews = await ctx.db
       .query("interviews")
       .withIndex("by_workspace_id", (q) => q.eq("workspaceId", user.workspaceId))
       .order("desc")
       .collect();
+
+    return await Promise.all(
+      interviews.map(async (interview) => {
+        const brief = await ctx.db.get(interview.briefId);
+        return {
+          ...interview,
+          briefTitle: brief?.title ?? "Unknown brief",
+        };
+      }),
+    );
   },
 });
 
@@ -89,6 +99,8 @@ export const getGuestSessionByToken = query({
       state: "valid" as const,
       interviewId: interview._id,
       briefTitle: brief?.title ?? "Untitled brief",
+      briefTopic: brief?.topic ?? "",
+      contentType: brief?.contentType ?? "blog_post",
       interviewerLanguage: brief?.interviewerLanguage ?? "en",
       outputLanguage: brief?.outputLanguage ?? "en",
       status: interview.status,

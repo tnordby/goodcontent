@@ -1,22 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { api as rawApi } from "@/convex/_generated/api";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-const api = rawApi as any;
 
 export default function InterviewsPage() {
   const briefs = useQuery(api.briefs.listByCurrentWorkspace) ?? [];
   const interviews = useQuery(api.interviews.listByCurrentWorkspace) ?? [];
   const createLink = useMutation(api.interviews.createLinkForBrief);
-  const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [creatingFor, setCreatingFor] = useState<Id<"briefs"> | null>(null);
   const [latestUrl, setLatestUrl] = useState<string>("");
 
-  const handleCreate = async (briefId: string) => {
+  const latestInterviewUrl = useMemo(() => {
+    if (!latestUrl) return "";
+    if (latestUrl.startsWith("http://") || latestUrl.startsWith("https://")) {
+      return latestUrl;
+    }
+    if (typeof window === "undefined") return latestUrl;
+    return `${window.location.origin}${latestUrl}`;
+  }, [latestUrl]);
+
+  const handleCreate = async (briefId: Id<"briefs">) => {
     setCreatingFor(briefId);
     try {
       const result = await createLink({ briefId });
@@ -26,6 +34,15 @@ export default function InterviewsPage() {
       toast.error(error instanceof Error ? error.message : "Failed to create link");
     } finally {
       setCreatingFor(null);
+    }
+  };
+
+  const copyText = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Could not copy to clipboard");
     }
   };
 
@@ -44,8 +61,20 @@ export default function InterviewsPage() {
           <CardHeader>
             <CardTitle>Latest interview link</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm">
-            <code className="rounded bg-muted px-2 py-1">{latestUrl}</code>
+          <CardContent className="flex flex-col gap-3 text-sm">
+            <code className="break-all rounded bg-muted px-2 py-1">
+              {latestInterviewUrl || latestUrl}
+            </code>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => copyText(latestInterviewUrl || latestUrl)}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                Copy URL
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -62,7 +91,7 @@ export default function InterviewsPage() {
                 link.
               </p>
             ) : (
-              briefs.map((brief: any) => (
+              briefs.map((brief) => (
                 <div
                   key={brief._id}
                   className="flex items-center justify-between rounded-md border p-3"
@@ -96,15 +125,17 @@ export default function InterviewsPage() {
                 No interviews yet.
               </p>
             ) : (
-              interviews.map((interview: any) => (
+              interviews.map((interview) => (
                 <div
                   key={interview._id}
                   className="rounded-md border p-3 text-sm text-muted-foreground"
                 >
-                  <p className="font-medium text-foreground">
-                    Brief ID: {interview.briefId}
-                  </p>
-                  <p>Status: {interview.status}</p>
+                  <p className="font-medium text-foreground">{interview.briefTitle}</p>
+                  <p className="text-xs text-muted-foreground">Brief ID: {interview.briefId}</p>
+                  <p className="mt-2">Status: {interview.status}</p>
+                  {interview.transcript ? (
+                    <p className="mt-2 line-clamp-4 whitespace-pre-wrap">{interview.transcript}</p>
+                  ) : null}
                 </div>
               ))
             )}

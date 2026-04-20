@@ -6,6 +6,63 @@ import { Webhook } from "svix";
 
 const http = httpRouter();
 
+const corsJsonHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Content-Type": "application/json; charset=utf-8",
+} as const;
+
+http.route({
+  path: "/guest/interview/complete",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: corsJsonHeaders });
+  }),
+});
+
+http.route({
+  path: "/guest/interview/complete",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = (await request.json()) as {
+        token?: string;
+        transcript?: string;
+        guestName?: string;
+        guestEmail?: string;
+      };
+
+      const token = body.token?.trim() ?? "";
+      const transcript = body.transcript ?? "";
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Missing token" }), {
+          status: 400,
+          headers: corsJsonHeaders,
+        });
+      }
+
+      await ctx.runMutation(internal.drafts.completeGuestInterviewFromHttp, {
+        token,
+        transcript,
+        guestName: body.guestName,
+        guestEmail: body.guestEmail,
+      });
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: corsJsonHeaders,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Request failed";
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: corsJsonHeaders,
+      });
+    }
+  }),
+});
+
 http.route({
   path: "/webhook/clerk",
   method: "POST",
