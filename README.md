@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GoodContent
 
-## Getting Started
+Next.js (App Router) + Convex + Clerk.
 
-First, run the development server:
+## Local development
+
+Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy env vars (do not commit secrets):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run Next + Convex dev together:
 
-## Learn More
+```bash
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deploying to Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Set the environment variables from `.env.example` in the Vercel project settings (Production + Preview).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Minimum set that commonly blocks builds:
 
-## Deploy on Vercel
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_CONVEX_URL` (Convex **Cloud** URL ending in `.convex.cloud`)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Recommended:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `CLERK_JWT_ISSUER_DOMAIN` (must match the Clerk JWT template issuer used by Convex)
+- `CLERK_WEBHOOK_SECRET` (for `convex/http.ts` Clerk webhooks)
+- `NEXT_PUBLIC_SITE_URL` (canonical URL for Open Graph metadata)
+
+## Convex production checklist
+
+1. Create a **production** Convex deployment in the Convex dashboard.
+2. Deploy functions to prod:
+
+```bash
+npx convex deploy
+```
+
+3. Set Convex environment variables in the Convex dashboard (not just Vercel), including `CLERK_JWT_ISSUER_DOMAIN` and `CLERK_WEBHOOK_SECRET` as required by your deployment.
+4. Set `NEXT_PUBLIC_CONVEX_URL` in Vercel to the **prod** Convex cloud URL.
+
+## Working in this repo (important)
+
+The canonical git checkout used for commits/pushes is:
+
+`/Users/thorsteinnordby/Desktop/Projects/goodcontent-repo`
+
+If you also keep a separate editor folder at `/Users/thorsteinnordby/Desktop/Projects/goodcontent`, treat it as a **synced working copy** (it does not contain `.git` in this setup).

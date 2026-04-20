@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import "./landing.global.css";
 import styles from "./landing.module.css";
 import demoStyles from "./demo.module.css";
@@ -754,10 +755,10 @@ export default function Home() {
       {/* Navigation */}
       <nav className={styles.nav}>
         <div className={`${styles.wrap} ${styles.navInner}`}>
-          <a href="#" className={styles.logo}>
+          <Link href="/" className={styles.logo}>
             <Logo />
             <span>GoodContent</span>
-          </a>
+          </Link>
           <div className={styles.navLinks}>
             <a href="#how">How it works</a>
             <a href="#demo">Demo</a>
@@ -766,6 +767,12 @@ export default function Home() {
             <a href="#faq">FAQ</a>
           </div>
           <div className={styles.navRight}>
+            <Link className={`${styles.btn} ${styles.btnGhost}`} href="/dashboard">
+              Open app
+            </Link>
+            <Link className={`${styles.btn} ${styles.btnGhost}`} href="/sign-in">
+              Sign in
+            </Link>
             <a
               className={`${styles.btn} ${styles.btnPrimary}`}
               href="#cta"

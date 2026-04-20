@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/providers/convex-client-provider";
 import { shadcn } from "@clerk/themes";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,10 +18,49 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function getMetadataBase(): URL | undefined {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) {
+    try {
+      return new URL(explicit);
+    } catch {
+      // fall through
+    }
+  }
+
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) {
+    try {
+      return new URL(`https://${vercelUrl}`);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
 export const metadata: Metadata = {
-  title: "GoodContent",
+  metadataBase: getMetadataBase(),
+  title: {
+    default: "GoodContent",
+    template: "%s · GoodContent",
+  },
   description:
-    "Capture SME expertise through AI voice interviews and publish-ready drafts.",
+    "GoodContent runs async expert interviews and turns transcripts into publish-ready drafts for HubSpot.",
+  applicationName: "GoodContent",
+  openGraph: {
+    title: "GoodContent",
+    description:
+      "AI interviews your experts. You get publish-ready drafts in HubSpot.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GoodContent",
+    description:
+      "AI interviews your experts. You get publish-ready drafts in HubSpot.",
+  },
 };
 
 export default function RootLayout({
@@ -28,6 +68,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const enableVercelAnalytics = process.env.VERCEL === "1";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -43,6 +85,7 @@ export default function RootLayout({
             >
               {children}
               <Toaster />
+              {enableVercelAnalytics ? <Analytics /> : null}
             </ThemeProvider>
           </ConvexClientProvider>
         </ClerkProvider>
