@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "./landing.global.css";
 import styles from "./landing.module.css";
@@ -1397,17 +1397,15 @@ export default function Home() {
                 "Copy-paste",
               ],
             ].map((r, i) => (
-              <>
-                <div key={`${i}-label`} className={styles.rowLabel}>
-                  {r[0]}
-                </div>
-                <div key={`${i}-us`} className={styles.cellUs}>
+              <Fragment key={`compare-row-${i}`}>
+                <div className={styles.rowLabel}>{r[0]}</div>
+                <div className={styles.cellUs}>
                   <b>{r[1]}</b>
                 </div>
-                <div key={`${i}-2`}>{r[2]}</div>
-                <div key={`${i}-3`}>{r[3]}</div>
-                <div key={`${i}-4`}>{r[4]}</div>
-              </>
+                <div>{r[2]}</div>
+                <div>{r[3]}</div>
+                <div>{r[4]}</div>
+              </Fragment>
             ))}
           </div>
         </div>
