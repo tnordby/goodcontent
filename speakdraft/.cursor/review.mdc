@@ -1,0 +1,106 @@
+---
+description: Speak Draft AI - Pre-ship Review Checklist
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Speak Draft AI — Review Checklist
+
+Run through this checklist before merging any PR or shipping a feature.
+
+---
+
+## ✅ Auth & Access Control
+
+- [ ] All Convex mutations check `ctx.auth.getUserIdentity()` — unauthenticated requests throw
+- [ ] Workspace isolation confirmed — no query returns data from another workspace
+- [ ] Guest interview token validated on every request — expired or invalid tokens rejected
+- [ ] Admin-only actions (billing, HubSpot connect, user management) gated by `role === "admin"`
+- [ ] HubSpot OAuth tokens stored server-side only — never exposed to client
+
+---
+
+## ✅ Credit System
+
+- [ ] Credit balance checked **before** starting interview or generating content
+- [ ] Credits deducted via `internalMutation` only — never from client-callable functions
+- [ ] Every deduction creates a `creditTransactions` ledger entry with `referenceId`
+- [ ] Balance cannot go negative — action blocked, not retroactively charged
+- [ ] Polar.sh webhook updates credit balance atomically — no double-credit on retry
+
+---
+
+## ✅ Interview Room
+
+- [ ] Guest token is single-use — marked `in_progress` on first connection, blocks re-entry
+- [ ] Token expiry enforced server-side (not just client-side)
+- [ ] Deepgram WebSocket connection closes cleanly on interview end
+- [ ] Audio stored to Cloudflare R2 — not in Convex
+- [ ] Transcript saved to Convex only after interview marked `completed`
+- [ ] No PII from guest (email, name) required — only optional
+- [ ] Interview UI works without login — no Clerk session required on `/interview/[token]` route
+
+---
+
+## ✅ Content Generation
+
+- [ ] Claude prompt includes: content type, topic, tone, language, keywords, outline, sources
+- [ ] Output language explicitly stated in system prompt — not inferred
+- [ ] Draft stored only after full generation — no partial saves
+- [ ] Error state shown if generation fails — user can retry without re-interviewing
+- [ ] Generated content does not include raw transcript — only synthesised output
+
+---
+
+## ✅ HubSpot Integration
+
+- [ ] OAuth access tokens refreshed before API calls — handle 401 gracefully
+- [ ] Content type correctly mapped to HubSpot API endpoint
+- [ ] Bulk push handles rate limits — max 10 requests/second to HubSpot API
+- [ ] Duplicate prevention — warn user if a draft with the same title already exists in portal
+- [ ] `hubspotContentId` saved to draft on successful push
+- [ ] HubSpot connection scoped to correct portal — agency multi-portal correctly isolated
+
+---
+
+## ✅ TypeScript & Code Quality
+
+- [ ] No `any` types introduced
+- [ ] No `console.log` left in production code — use Sentry for errors
+- [ ] All new Convex tables have appropriate indexes
+- [ ] Environment variables accessed via `process.env.VAR!` — validated at startup
+- [ ] No secrets or API keys committed — all in `.env.local` / deployment env
+- [ ] No TODO comments left unresolved in shipped code
+
+---
+
+## ✅ UI & UX
+
+- [ ] Loading states on all async actions (brief save, interview start, generation, HubSpot push)
+- [ ] Error states visible and actionable — not silent failures
+- [ ] Mobile-responsive — especially the guest interview room (guests use phones)
+- [ ] Language selector present on brief form — English default
+- [ ] Credit balance visible in dashboard nav — always up to date via Convex reactive query
+- [ ] Empty states handled — no broken UI when workspace has no briefs/drafts
+
+---
+
+## ✅ Performance
+
+- [ ] Server Components used where no interactivity needed
+- [ ] No unnecessary `useEffect` data fetching — prefer Convex `useQuery`
+- [ ] Audio streaming uses WebSocket — no polling
+- [ ] Cloudflare R2 signed URLs used for audio playback — not direct bucket URLs
+- [ ] No N+1 queries in Convex — batch or index appropriately
+
+---
+
+## ✅ Before Going to Production
+
+- [ ] Sentry DSN configured and errors flowing
+- [ ] Polar.sh webhook secret validated on every webhook call
+- [ ] Convex deployment environment set to production
+- [ ] All HubSpot OAuth redirect URIs updated to production domain
+- [ ] Resend sending domain verified
+- [ ] R2 bucket CORS configured for production domain only
+- [ ] Rate limiting on `/api/interview/*` routes — prevent abuse of guest links

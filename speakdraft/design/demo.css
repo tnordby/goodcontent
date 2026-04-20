@@ -1,0 +1,186 @@
+/* Interactive demo widget styles */
+.demo-shell {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-card);
+  overflow: hidden;
+  margin-bottom: 96px;
+  box-shadow: 0 40px 80px -40px rgba(0,0,0,0.6);
+}
+
+.demo-chrome {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.demo-dots { display: flex; gap: 6px; width: 52px; }
+.demo-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+.demo-url {
+  flex: 1; text-align: center;
+  font-size: 12px; color: var(--fg-muted);
+  background: var(--bg);
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.demo-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 460px;
+}
+@media (min-width: 780px) {
+  .demo-body { grid-template-columns: 280px 1fr; }
+}
+
+.demo-left {
+  padding: 32px 24px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  position: relative;
+}
+
+.demo-orb-wrap {
+  position: relative;
+  width: 140px; height: 140px;
+  display: grid; place-items: center;
+}
+.demo-orb {
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, color-mix(in oklab, var(--accent) 30%, var(--bg-card)), var(--bg-card) 70%);
+  border: 1px solid var(--border-strong);
+  display: grid; place-items: center;
+  position: relative;
+  transition: all 0.3s;
+}
+.demo-orb-inner {
+  width: 100px; height: 50px;
+  display: grid; place-items: center;
+}
+.demo-orb.pulse-listen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent);
+  animation: pulseListen 1.6s infinite;
+}
+.demo-orb.pulse-speak {
+  border-color: #5b8dff;
+  box-shadow: 0 0 40px -10px #5b8dff;
+}
+@keyframes pulseListen {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 50%, transparent); }
+  70% { box-shadow: 0 0 0 24px color-mix(in oklab, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+
+.demo-status {
+  display: flex; align-items: center; gap: 8px;
+}
+.demo-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  box-shadow: 0 0 12px currentColor;
+}
+.demo-timer {
+  font-size: 24px; font-weight: 500;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.demo-brief {
+  margin-top: auto;
+  width: 100%;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+.demo-brief-label {
+  font-size: 10px;
+  color: var(--fg-subtle);
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+.demo-brief-title {
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.demo-brief-meta {
+  font-size: 11px;
+  color: var(--fg-subtle);
+  display: flex; gap: 6px;
+  letter-spacing: 0.05em;
+}
+
+.demo-right {
+  display: flex; flex-direction: column;
+  min-height: 460px;
+}
+.demo-transcript {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+  max-height: 460px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.demo-transcript::-webkit-scrollbar { width: 6px; }
+.demo-transcript::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+.demo-empty {
+  margin: auto 0;
+}
+
+.demo-line {
+  display: flex; flex-direction: column; gap: 6px;
+  animation: fadeUp 0.3s ease;
+}
+.demo-who {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--fg-subtle);
+}
+.demo-line.ai .demo-who { color: #5b8dff; }
+.demo-line.guest .demo-who { color: var(--accent); }
+.demo-text {
+  font-size: 15px;
+  color: var(--fg);
+  line-height: 1.55;
+  max-width: 620px;
+}
+.demo-text .cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.demo-done {
+  padding: 16px;
+  background: var(--accent-dim);
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.demo-controls {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  display: flex; align-items: center; gap: 12px;
+  min-height: 64px;
+}
+.demo-running {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  letter-spacing: 0.05em;
+}
+.demo-rec {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #e3433f;
+  animation: blink 1s infinite;
+}

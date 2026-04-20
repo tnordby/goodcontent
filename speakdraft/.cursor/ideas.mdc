@@ -1,0 +1,133 @@
+---
+description: Speak Draft - Exploration Ideas (Pre-Backlog)
+globs: []
+alwaysApply: false
+---
+
+# Speak Draft — Exploration Ideas
+
+Concepts under exploration. Not committed to MVP or backlog. Stash and develop ideas here before promoting them to `product.mdc`.
+
+---
+
+## Contributor Leaderboard
+
+Public or workspace-internal leaderboard of top interview contributors (SMEs, customers, employees).
+
+**Hypothesis:** SMEs are the bottleneck. Recognition drives participation. An employee advocacy program or customer community with a visible "top contributor" list should lift interview completion rates.
+
+**Mechanics:**
+- Track interviews completed per contributor (keyed by email + workspace)
+- Metrics: interviews done, content pieces published, estimated words contributed
+- Admin can publish to a public page or keep internal
+- Optional: issue contributor badges (LinkedIn-embeddable)
+- Tie-in with Incentives (below)
+
+**Open questions:**
+- Privacy: opt-in vs opt-out for public display
+- GDPR: contributor must consent to public display separately from interview consent
+- Gaming: how to prevent spam or low-quality contributions counting
+
+---
+
+## Campaign-Level Briefs (Nested Model)
+
+Move from 1 brief = 1 piece to 1 campaign brief → N child pieces.
+
+**Hypothesis:** Real B2B content operations run in campaigns (pillar + cluster, launch campaigns, quarterly themes). Single-piece briefs force users to re-enter context for every child.
+
+**Mechanics:**
+- New `campaigns` entity: shared topic, audience, keywords, sources, tone
+- Child briefs inherit campaign fields, can override
+- One interview can feed multiple child briefs (one transcript → multiple pieces)
+- Campaign-level analytics: pieces completed, total words, keyword coverage
+
+**Open questions:**
+- How to split one transcript across multiple pieces without repetition
+- Does a campaign need its own phase model, or is it purely a grouping?
+- Billing: does a campaign cost more credits, or just aggregate child costs?
+
+---
+
+## Transcript Re-use (One Interview, Many Outputs)
+
+Currently: 1 interview → 1 draft. Proposed: 1 interview → N drafts.
+
+**Hypothesis:** A 30-minute interview with a customer contains enough material for a case study, a blog post, a LinkedIn post series, and a sales one-pager. The interview is the most expensive asset (guest's time); forcing 1:1 wastes it.
+
+**Mechanics:**
+- After interview completes, user can spawn additional drafts from the same transcript
+- Each child draft has its own brief (content type, tone, angle, outputLanguage)
+- Claude is re-prompted with transcript + new brief
+- Credits charged per generation, not per interview
+
+**Open questions:**
+- UI pattern: sidebar on completed interview? "Spawn draft" action on transcript view?
+- Does this dilute the interview's focus? (If a guest knew the output would be one piece, the interview may be tailored differently.)
+- Pricing impact: interviews become more valuable, generations become the main cost driver
+
+---
+
+## Incentive System (Beyond Gift Cards)
+
+The current backlog mentions "gift card / incentive system for interview guests". This is the richer version.
+
+**Hypothesis:** The right incentive is different per contributor type. Employees want recognition. Customers may want discounts. SMEs may want co-byline credit. One-size gift cards underperform.
+
+**Mechanics:**
+- Admin configures incentive per brief or per workspace default:
+  - Monetary: Amazon, Tremendous, Rybbon, regional equivalents
+  - Co-byline on published content
+  - LinkedIn tag + thank-you post on company page
+  - Discount on contributor's next invoice (webhook to external system)
+  - Charitable donation in contributor's name
+- Automatic trigger on interview completion
+- Budget cap per workspace per month
+- Contributor can decline any incentive
+
+**Open questions:**
+- Tax/regulatory implications of gift cards across EU jurisdictions
+- Integration partner choice (Tremendous API looks easiest; regional coverage needs verification)
+- Interplay with Leaderboard — is the incentive cumulative or per-interview?
+
+---
+
+## Promotion Criteria
+
+An idea moves from this file to `product.mdc` **MVP** when:
+1. A design sketch or user flow exists
+2. Pricing/credit impact is modelled
+3. At least one target user has validated the need in conversation
+
+An idea moves to `product.mdc` **backlog** when:
+1. MVP has shipped
+2. A clear target customer segment is tied to the idea
+
+An idea gets deleted when:
+1. Data shows it does not matter
+2. Another mechanism solves the same problem
+
+---
+
+## Workflow and Briefing Questions to Resolve
+
+These are product-definition questions that need explicit decisions before implementation scope is finalised:
+
+- **"Steps" interpretation**: confirm whether this means a visible user progress bar (`Brief -> Interview -> Draft -> Review -> Push`) or richer support for stepwise how-to content structures
+- **Outline strictness**: decide whether outline remains optional, becomes AI-generated-by-default, or becomes required with structured H2/H3 tree editing
+- **Brief model evolution**: current model is 1 brief per content piece; evaluate campaign-level parent brief with child pieces for pillar/cluster workflows
+- **Custom brief templates**: workspace-level reusable templates are high-value for agencies and likely MVP-adjacent
+
+## Contributor Motivation System (SME Cooperation)
+
+Interview completion depends on SME participation, so motivation mechanics are a strategic retention lever.
+
+**Potential mechanics:**
+- Contributor leaderboard (internal or public) for SMEs/customers/employees
+- Recognition incentives beyond gift cards: co-byline, LinkedIn tags, contributor spotlight
+- Workspace-level contributor programs for employee advocacy and customer community participation
+
+**Open questions:**
+- Privacy and consent model for public leaderboards
+- How to prevent low-quality or spam contributions from gaming rankings
+- Whether incentive logic should be per workspace default, per brief override, or both
