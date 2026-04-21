@@ -17,6 +17,40 @@ export const listByCurrentWorkspace = query({
   },
 });
 
+export const get = query({
+  args: { briefId: v.id("briefs") },
+  handler: async (ctx, { briefId }) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return null;
+    }
+    const brief = await ctx.db.get(briefId);
+    if (!brief || brief.workspaceId !== user.workspaceId) {
+      return null;
+    }
+
+    const draft = await ctx.db
+      .query("drafts")
+      .withIndex("by_brief_id", (q) => q.eq("briefId", briefId))
+      .order("desc")
+      .first();
+
+    const interview = await ctx.db
+      .query("interviews")
+      .withIndex("by_brief_id", (q) => q.eq("briefId", briefId))
+      .order("desc")
+      .first();
+
+    return {
+      ...brief,
+      draftId: draft?._id ?? null,
+      draftStatus: draft?.status ?? null,
+      interviewId: interview?._id ?? null,
+      interviewStatus: interview?.status ?? null,
+    };
+  },
+});
+
 export const create = mutation({
   args: {
     contentType: v.union(
