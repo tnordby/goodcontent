@@ -30,6 +30,68 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_workspace_id", ["workspaceId"]),
 
+  brands: defineTable({
+    workspaceId: v.id("workspaces"),
+    isPrimary: v.boolean(),
+    name: v.string(),
+    website: v.string(),
+    tagline: v.optional(v.string()),
+    elevatorPitch: v.optional(v.string()),
+    missionStatement: v.optional(v.string()),
+    products: v.array(
+      v.object({
+        name: v.string(),
+        description: v.string(),
+        differentiators: v.array(v.string()),
+        useCases: v.array(v.string()),
+        canonicalUrl: v.optional(v.string()),
+      })
+    ),
+    icp: v.object({
+      targetMarket: v.optional(v.string()),
+      industries: v.array(v.string()),
+      companySizes: v.array(v.string()),
+      geographies: v.array(v.string()),
+      jobsToBeDone: v.array(v.string()),
+      personas: v.array(
+        v.object({
+          title: v.string(),
+          painPoints: v.array(v.string()),
+          desiredOutcomes: v.array(v.string()),
+        })
+      ),
+    }),
+    brandVoice: v.optional(v.string()),
+    toneDefault: v.optional(v.string()),
+    sayInstead: v.array(
+      v.object({
+        instead: v.string(),
+        say: v.string(),
+      })
+    ),
+    doNotSay: v.array(v.string()),
+    competitors: v.array(
+      v.object({
+        name: v.string(),
+        positioningNote: v.optional(v.string()),
+      })
+    ),
+    visual: v.object({
+      logoUrl: v.optional(v.string()),
+      primaryColor: v.optional(v.string()),
+      secondaryColors: v.array(v.string()),
+      typography: v.optional(v.string()),
+      imageStyleNotes: v.optional(v.string()),
+    }),
+    sourceUrls: v.array(v.string()),
+    lastRefreshedAt: v.optional(v.number()),
+    lastEditedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace_id", ["workspaceId"])
+    .index("by_workspace_primary", ["workspaceId", "isPrimary"]),
+
   briefs: defineTable({
     workspaceId: v.id("workspaces"),
     createdBy: v.id("users"),
