@@ -306,3 +306,70 @@ export const startByToken = mutation({
   },
 });
 
+export const contributorLeaderboardByCurrentWorkspace = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const interviews = await ctx.db
+      .query("interviews")
+      .withIndex("by_workspace_id", (q) => q.eq("workspaceId", user.workspaceId))
+      .collect();
+
+    const completed = interviews.filter(
+      (row) => row.status === "completed" && !!row.completedAt,
+    );
+
+    const byContributor = new Map<
+      string,
+      {
+        displayName: string;
+        email: string | null;
+        completedInterviews: number;
+        totalCharacters: number;
+        lastContributionAt: number;
+      }
+    >();
+
+    for (const row of completed) {
+      const name = row.guestName?.trim() || "";
+      const email = row.guestEmail?.trim().toLowerCase() || "";
+      const key = email || name.toLowerCase() || `anon:${row._id}`;
+      const transcriptLength = row.transcript?.trim().length ?? 0;
+      const lastAt = row.completedAt ?? row.updatedAt;
+
+      const existing = byContributor.get(key);
+      if (!existing) {
+        byContributor.set(key, {
+          displayName: name || email || "Anonymous contributor",
+          email: email || null,
+          completedInterviews: 1,
+          totalCharacters: transcriptLength,
+          lastContributionAt: lastAt,
+        });
+        continue;
+      }
+
+      byContributor.set(key, {
+        ...existing,
+        completedInterviews: existing.completedInterviews + 1,
+        totalCharacters: existing.totalCharacters + transcriptLength,
+        lastContributionAt: Math.max(existing.lastContributionAt, lastAt),
+      });
+    }
+
+    return [...byContributor.values()].sort((a, b) => {
+      if (b.completedInterviews !== a.completedInterviews) {
+        return b.completedInterviews - a.completedInterviews;
+      }
+      if (b.totalCharacters !== a.totalCharacters) {
+        return b.totalCharacters - a.totalCharacters;
+      }
+      return b.lastContributionAt - a.lastContributionAt;
+    });
+  },
+});
+

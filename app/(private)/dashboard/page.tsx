@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,18 +23,23 @@ type BriefDoc = Doc<"briefs">;
 function PipelineCard({ brief }: { brief: BriefDoc }) {
   return (
     <Link
-      className="block rounded-lg border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-accent/30"
+      className="block rounded-md border bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-accent/20"
       href={`/briefs/${brief._id}`}
     >
-      <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
+      <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">
         {brief.title}
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground">
           {contentTypeLabel(brief.contentType)}
         </span>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-muted-foreground">
           {briefPhaseLabel(brief.phase)}
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">
+          Updated{" "}
+          {formatDistanceToNow(brief.updatedAt, { addSuffix: true })}
         </span>
       </div>
     </Link>
@@ -42,6 +48,7 @@ function PipelineCard({ brief }: { brief: BriefDoc }) {
 
 export default function DashboardPage() {
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
+  const interviewsQuery = useQuery(api.interviews.listByCurrentWorkspace);
   const [showPublished, setShowPublished] = useState(false);
 
   const visibleColumns = useMemo(
@@ -74,6 +81,54 @@ export default function DashboardPage() {
     if (!briefsQuery) return 0;
     return briefsQuery.filter((b) => b.phase !== "pushed").length;
   }, [briefsQuery]);
+
+  const leaderboard = useMemo(() => {
+    if (!interviewsQuery) return [];
+    const byContributor = new Map<
+      string,
+      {
+        displayName: string;
+        email: string | null;
+        completedInterviews: number;
+        totalCharacters: number;
+        lastContributionAt: number;
+      }
+    >();
+    for (const row of interviewsQuery) {
+      if (row.status !== "completed" || !row.completedAt) continue;
+      const name = row.guestName?.trim() || "";
+      const email = row.guestEmail?.trim().toLowerCase() || "";
+      const key = email || name.toLowerCase() || `anon:${row._id}`;
+      const transcriptLength = row.transcript?.trim().length ?? 0;
+      const lastAt = row.completedAt ?? row.updatedAt;
+      const existing = byContributor.get(key);
+      if (!existing) {
+        byContributor.set(key, {
+          displayName: name || email || "Anonymous contributor",
+          email: email || null,
+          completedInterviews: 1,
+          totalCharacters: transcriptLength,
+          lastContributionAt: lastAt,
+        });
+        continue;
+      }
+      byContributor.set(key, {
+        ...existing,
+        completedInterviews: existing.completedInterviews + 1,
+        totalCharacters: existing.totalCharacters + transcriptLength,
+        lastContributionAt: Math.max(existing.lastContributionAt, lastAt),
+      });
+    }
+    return [...byContributor.values()].sort((a, b) => {
+      if (b.completedInterviews !== a.completedInterviews) {
+        return b.completedInterviews - a.completedInterviews;
+      }
+      if (b.totalCharacters !== a.totalCharacters) {
+        return b.totalCharacters - a.totalCharacters;
+      }
+      return b.lastContributionAt - a.lastContributionAt;
+    });
+  }, [interviewsQuery]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 p-4 md:p-6">
@@ -178,16 +233,22 @@ export default function DashboardPage() {
               return (
                 <div
                   key={col.id}
-                  className="flex w-[min(100%,280px)] shrink-0 flex-col rounded-xl border bg-muted/20"
+                  className="flex w-[min(100%,290px)] shrink-0 flex-col rounded-lg border bg-muted/25"
                 >
-                  <div className="border-b bg-muted/30 px-3 py-2.5">
-                    <p className="text-sm font-semibold text-foreground">{col.title}</p>
-                    <p className="text-xs text-muted-foreground">{col.description}</p>
-                    <p className="mt-1 text-xs font-medium tabular-nums text-muted-foreground">
-                      {items.length} {items.length === 1 ? "item" : "items"}
-                    </p>
+                  <div className="flex items-center justify-between border-b bg-muted/45 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-semibold uppercase tracking-wide text-foreground/90">
+                        {col.title}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {col.description}
+                      </p>
+                    </div>
+                    <span className="rounded-full border bg-background px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground">
+                      {items.length}
+                    </span>
                   </div>
-                  <div className="flex min-h-[120px] flex-1 flex-col gap-2 p-2">
+                  <div className="flex min-h-[180px] flex-1 flex-col gap-2 p-2">
                     {items.length === 0 ? (
                       <p className="px-1 py-6 text-center text-xs text-muted-foreground">
                         Nothing in this stage
@@ -202,6 +263,65 @@ export default function DashboardPage() {
               );
             })}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Contributor leaderboard</h2>
+          <p className="text-sm text-muted-foreground">
+            Top contributors by completed interviews in this workspace.
+          </p>
+        </div>
+        {interviewsQuery === undefined ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              Loading leaderboard…
+            </CardContent>
+          </Card>
+        ) : leaderboard.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              No completed interviews yet. Once guests submit interviews, top
+              contributors will appear here.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {leaderboard.slice(0, 10).map((person, idx) => (
+                  <div
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                    key={`${person.displayName}-${idx}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {idx + 1}. {person.displayName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {person.email ?? "No email provided"}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <p>
+                        <span className="font-semibold text-foreground">
+                          {person.completedInterviews}
+                        </span>{" "}
+                        interviews
+                      </p>
+                      <p>
+                        {person.totalCharacters.toLocaleString()} chars · last{" "}
+                        {formatDistanceToNow(person.lastContributionAt, {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </section>
 
