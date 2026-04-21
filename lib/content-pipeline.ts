@@ -35,6 +35,18 @@ export const CONTENT_PIPELINE_COLUMNS = [
 export type ContentPipelineColumnId =
   (typeof CONTENT_PIPELINE_COLUMNS)[number]["id"];
 
+export const PUBLISHED_PIPELINE_COLUMN_ID: ContentPipelineColumnId = "published";
+
+/** Columns shown on the dashboard board (optionally hides shipped work). */
+export function pipelineColumnsForDashboard(includePublished: boolean) {
+  if (includePublished) {
+    return [...CONTENT_PIPELINE_COLUMNS];
+  }
+  return CONTENT_PIPELINE_COLUMNS.filter(
+    (c) => c.id !== PUBLISHED_PIPELINE_COLUMN_ID,
+  );
+}
+
 export function briefPhaseToPipelineColumnId(
   phase: string,
 ): ContentPipelineColumnId {

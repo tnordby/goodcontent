@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CONTENT_PIPELINE_COLUMNS,
+  PUBLISHED_PIPELINE_COLUMN_ID,
   briefPhaseToPipelineColumnId,
+  pipelineColumnsForDashboard,
   type ContentPipelineColumnId,
 } from "@/lib/content-pipeline";
 import { contentTypeLabel } from "@/lib/pipeline-labels";
@@ -40,6 +42,12 @@ function PipelineCard({ brief }: { brief: BriefDoc }) {
 
 export default function DashboardPage() {
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
+  const [showPublished, setShowPublished] = useState(false);
+
+  const visibleColumns = useMemo(
+    () => pipelineColumnsForDashboard(showPublished),
+    [showPublished],
+  );
 
   const briefsByColumn = useMemo(() => {
     const map = new Map<ContentPipelineColumnId, BriefDoc[]>();
@@ -57,6 +65,9 @@ export default function DashboardPage() {
     }
     return map;
   }, [briefsQuery]);
+
+  const publishedCount =
+    briefsByColumn.get(PUBLISHED_PIPELINE_COLUMN_ID)?.length ?? 0;
 
   const totalBriefs = briefsQuery?.length ?? 0;
   const wipCount = useMemo(() => {
@@ -91,7 +102,7 @@ export default function DashboardPage() {
       </div>
 
       <section aria-labelledby="pipeline-heading" className="space-y-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2
               id="pipeline-heading"
@@ -102,10 +113,48 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">
               Same stages as your brief lifecycle — newest updates first in each column.
             </p>
+            {!showPublished && publishedCount > 0 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{publishedCount}</span>{" "}
+                published {publishedCount === 1 ? "item" : "items"} hidden — use{" "}
+                <span className="font-medium text-foreground">Include published</span> to
+                show that column.
+              </p>
+            ) : null}
           </div>
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link href="/briefs">New brief</Link>
-          </Button>
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <div
+              className="flex rounded-lg border bg-muted/30 p-0.5 text-xs font-medium"
+              role="group"
+              aria-label="Pipeline view"
+            >
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 transition-colors ${
+                  !showPublished
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowPublished(false)}
+              >
+                In progress
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 transition-colors ${
+                  showPublished
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowPublished(true)}
+              >
+                Include published
+              </button>
+            </div>
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href="/briefs">New brief</Link>
+            </Button>
+          </div>
         </div>
 
         {briefsQuery === undefined ? (
@@ -124,7 +173,7 @@ export default function DashboardPage() {
           </Card>
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-2 pt-1 [scrollbar-gutter:stable]">
-            {CONTENT_PIPELINE_COLUMNS.map((col) => {
+            {visibleColumns.map((col) => {
               const items = briefsByColumn.get(col.id) ?? [];
               return (
                 <div

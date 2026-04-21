@@ -113,9 +113,20 @@ export default function BriefHubPage() {
         <Button asChild type="button" variant="secondary">
           <Link href="/interviews">Interview links</Link>
         </Button>
-        <Button asChild type="button" variant="outline">
-          <Link href="/drafts">Drafts</Link>
-        </Button>
+        {brief.draftId ? (
+          <>
+            <Button asChild type="button">
+              <Link href={`/drafts?draft=${brief.draftId}`}>Open this draft</Link>
+            </Button>
+            <Button asChild type="button" variant="outline">
+              <Link href="/drafts">All drafts</Link>
+            </Button>
+          </>
+        ) : (
+          <Button asChild type="button" variant="outline">
+            <Link href="/drafts">Drafts</Link>
+          </Button>
+        )}
         <Button asChild type="button" variant="outline">
           <Link href="/dashboard">Dashboard</Link>
         </Button>

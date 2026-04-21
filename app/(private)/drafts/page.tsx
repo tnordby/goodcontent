@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -9,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function DraftsPage() {
+  const searchParams = useSearchParams();
+  const focusDraftId = searchParams.get("draft")?.trim() ?? "";
   const drafts = useQuery(api.drafts.listByCurrentWorkspace);
   const saveDraft = useMutation(api.drafts.saveDraftContent);
   const approveDraft = useMutation(api.drafts.approveDraft);
@@ -18,6 +22,43 @@ export default function DraftsPage() {
   const regenerateDraft = useMutation(api.drafts.regenerateDraft);
   const [localBodies, setLocalBodies] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [highlightDraftId, setHighlightDraftId] = useState<string | null>(null);
+  const focusHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!focusDraftId) {
+      focusHandledRef.current = null;
+      return;
+    }
+    if (drafts === undefined) {
+      return;
+    }
+    if (focusHandledRef.current === focusDraftId) {
+      return;
+    }
+
+    const exists = drafts.some((d) => String(d._id) === focusDraftId);
+    if (!exists) {
+      focusHandledRef.current = focusDraftId;
+      toast.message("Draft not found in this workspace", {
+        description: "The link may be outdated or the draft was removed.",
+      });
+      return;
+    }
+
+    focusHandledRef.current = focusDraftId;
+    const raf = requestAnimationFrame(() => {
+      document
+        .getElementById(`draft-${focusDraftId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    setHighlightDraftId(focusDraftId);
+    const timeout = window.setTimeout(() => setHighlightDraftId(null), 4500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
+  }, [drafts, focusDraftId]);
 
   const bodyFor = useCallback(
     (draftId: string, serverMarkdown: string) =>
@@ -155,9 +196,24 @@ export default function DraftsPage() {
               draft.status !== "push_failed";
 
             return (
-              <Card key={draft._id}>
+              <Card
+                key={draft._id}
+                id={`draft-${id}`}
+                className={cn(
+                  "scroll-mt-24 transition-shadow",
+                  highlightDraftId === id &&
+                    "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                )}
+              >
                 <CardHeader>
-                  <CardTitle className="text-lg">{draft.title}</CardTitle>
+                  <CardTitle className="text-lg">
+                    <Link
+                      className="hover:underline"
+                      href={`/briefs/${draft.briefId}`}
+                    >
+                      {draft.title}
+                    </Link>
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Draft:{" "}
                     <span className="text-foreground">{draft.status}</span>
