@@ -19,7 +19,7 @@ import {
   AudioLines,
   Sparkles,
   SlidersHorizontal,
-  PenSquare,
+  MessageSquareQuote,
   WalletCards,
 } from "lucide-react";
 
@@ -68,8 +68,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="py-4 px-4">
         <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 p-1.5">
-              <PenSquare className="size-full text-primary" />
+            <div className="flex size-8 items-center justify-center rounded-lg bg-[#e24a43]/10 p-1.5">
+              <MessageSquareQuote className="size-full text-[#e24a43]" />
             </div>
             <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">
               GoodContent
