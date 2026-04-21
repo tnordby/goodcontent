@@ -14,7 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import styles from "./briefs.module.css";
 
-const TYPE_META: Record<string, { glyph: string; label: string }> = {
+type ContentType =
+  | "blog_post"
+  | "case_study"
+  | "customer_story"
+  | "guide"
+  | "landing_page"
+  | "web_page"
+  | "email"
+  | "sales_collateral";
+
+const TYPE_META: Record<ContentType, { glyph: string; label: string }> = {
   blog_post: { glyph: "¶", label: "Blog post" },
   case_study: { glyph: "◊", label: "Case study" },
   customer_story: { glyph: "★", label: "Customer story" },
@@ -63,7 +73,16 @@ export default function BriefsPage() {
   const [tab, setTab] = useState<TabValue>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    title: string;
+    topic: string;
+    contentType: ContentType;
+    toneOfVoice: string;
+    interviewerLanguage: string;
+    outputLanguage: string;
+    keywords: string;
+    sources: string;
+  }>({
     title: "",
     topic: "",
     contentType: "blog_post",
@@ -97,11 +116,12 @@ export default function BriefsPage() {
   const rows = useMemo(() => {
     const normalized: BriefListRow[] = briefs.map((brief: BriefDoc) => {
       const stage = phaseToStage(brief.phase);
+      const contentType = brief.contentType as ContentType;
       return {
         ...brief,
         stage,
         stageMeta: STAGE_META[stage],
-        typeMeta: TYPE_META[brief.contentType] ?? { glyph: "•", label: brief.contentType },
+        typeMeta: TYPE_META[contentType] ?? { glyph: "•", label: brief.contentType },
       };
     });
 
@@ -278,16 +298,23 @@ export default function BriefsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contentType">Content type</Label>
-                <Input
+                <select
                   id="contentType"
                   value={form.contentType}
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
-                      contentType: event.target.value,
+                      contentType: event.target.value as ContentType,
                     }))
                   }
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                >
+                  {Object.entries(TYPE_META).map(([value, meta]) => (
+                    <option key={value} value={value}>
+                      {meta.glyph} {meta.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tone">Tone</Label>
