@@ -9,6 +9,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarDays, CircleUserRound, FileText, Mic, Sparkles } from "lucide-react";
 import { NewBriefModal, type NewBriefTypeOption } from "@/components/briefs/new-brief-modal";
+import { Button } from "@/components/ui/button";
 import {
   briefPhaseToPipelineColumnId,
   type ContentPipelineColumnId,
@@ -87,128 +88,6 @@ const CONTENT_TYPE_OPTIONS: NewBriefTypeOption[] = [
   { value: "opinion_piece", label: "Opinion piece", description: "POV-driven essay from a founder or executive with clear stance.", glyph: "❝", available: false },
 ];
 
-// ========== Components ==========
-function Sidebar({
-  briefCount,
-  interviewCount,
-  draftCount,
-  isCollapsed
-}: {
-  briefCount: number;
-  interviewCount: number;
-  draftCount: number;
-  isCollapsed: boolean;
-}) {
-  const [wsOpen, setWsOpen] = useState(false);
-
-  const navItems = [
-    { icon: "▦", label: "Dashboard", href: "/dashboard", active: true },
-    { icon: "▢", label: "Briefs", href: "/briefs", count: briefCount },
-    { icon: "◉", label: "Interviews", href: "/interviews", count: interviewCount },
-    { icon: "¶", label: "Drafts", href: "/drafts", count: draftCount },
-    { icon: "⚙", label: "Settings", href: "/settings" },
-    { icon: "✦", label: "Billing", href: "/billing" },
-  ];
-
-  const workspaces = [
-    { name: "My Workspace", role: "Admin", initials: "M", active: true },
-  ];
-
-  if (isCollapsed) {
-    return (
-      <aside className={`${styles.side} ${styles.collapsed}`}>
-        <div className={styles.sideLogo}>
-          <div className="mark">G</div>
-        </div>
-
-        <nav className={styles.sideNav}>
-          {navItems.map(item => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={item.active ? styles.active : ""}
-              title={item.label}
-            >
-              <span className="icn">{item.icon}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <div className={styles.sideBottom}>
-          <div className={styles.sideAvatar}>U</div>
-        </div>
-      </aside>
-    );
-  }
-
-  return (
-    <aside className={styles.side}>
-      <div className={styles.sideLogo}>
-        <div className="mark">G</div>
-        <span>GoodContent</span>
-      </div>
-
-      <div className={styles.wsSwitcher}>
-        <button
-          className={styles.wsTrigger}
-          onClick={() => setWsOpen(v => !v)}
-          aria-expanded={wsOpen}
-        >
-          <span className={styles.wsMark}>M</span>
-          <span className={styles.wsName}>My Workspace</span>
-          <span className={styles.wsCaret}>{wsOpen ? "▴" : "▾"}</span>
-        </button>
-        {wsOpen && (
-          <div className={styles.wsMenu} role="menu">
-            {workspaces.map(w => (
-              <button
-                key={w.name}
-                className={`${styles.wsItem} ${w.active ? styles.on : ""}`}
-                role="menuitem"
-              >
-                <span className={`${styles.wsMark} ${styles.sm}`}>{w.initials}</span>
-                <div className={styles.wsItemBody}>
-                  <span className={styles.wsItemName}>{w.name}</span>
-                  <span className={styles.wsItemRole}>{w.role}</span>
-                </div>
-                {w.active && <span className={styles.wsCheck}>✓</span>}
-              </button>
-            ))}
-            <div className={styles.wsSep} />
-            <button className={`${styles.wsItem}`} role="menuitem">
-              <span className={`${styles.wsMark} ${styles.sm} ${styles.plus}`}>+</span>
-              <div className={styles.wsItemBody}>
-                <span className={styles.wsItemName}>New workspace</span>
-              </div>
-            </button>
-          </div>
-        )}
-      </div>
-
-      <nav className={styles.sideNav}>
-        {navItems.map(item => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={item.active ? styles.active : ""}
-          >
-            <span className="icn">{item.icon}</span>
-            <span>{item.label}</span>
-            {item.count != null && <span className="count">{item.count}</span>}
-          </Link>
-        ))}
-      </nav>
-
-      <div className={styles.sideBottom}>
-        <div className={styles.sideAvatar}>U</div>
-        <div>
-          <div className={styles.sideWhoName}>User</div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
 function Sparkline({ data, up = true }: { data: number[]; up?: boolean }) {
   const w = 70,
     h = 30;
@@ -232,44 +111,6 @@ function Sparkline({ data, up = true }: { data: number[]; up?: boolean }) {
         strokeLinecap="round"
       />
     </svg>
-  );
-}
-
-function Topbar({
-  briefCount,
-  onToggleSidebar,
-  isSidebarCollapsed,
-  onNewBrief
-}: {
-  briefCount: number;
-  onToggleSidebar: () => void;
-  isSidebarCollapsed: boolean;
-  onNewBrief: () => void;
-}) {
-  return (
-    <div className={styles.topbar}>
-      <button
-        className={styles.topbarCollapse}
-        onClick={onToggleSidebar}
-        aria-label="Toggle sidebar"
-      >
-        {isSidebarCollapsed ? "⇥" : "⇤"}
-      </button>
-      <div className={styles.spacer} />
-      <div className={styles.topbarRight}>
-        <button
-          onClick={onNewBrief}
-          type="button"
-          className={`${styles.btnDash} ${styles.primary}`}
-        >
-          + New brief
-        </button>
-        <span className={styles.creditPill}>
-          <span className="creditDot" />
-          <b>{briefCount}</b>
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -690,7 +531,6 @@ function Leaderboard({ interviews }: { interviews: InterviewDoc[] | undefined })
 // ========== Main Page Component ==========
 export default function DashboardPage() {
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isBriefModalOpen, setIsBriefModalOpen] = useState(false);
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
   const interviewsQuery = useQuery(api.interviews.listByCurrentWorkspace);
@@ -722,34 +562,25 @@ export default function DashboardPage() {
   }, [briefsQuery, interviewsQuery]);
 
   return (
-    <div className={`${styles.app} ${sidebarCollapsed ? styles.sidebarCollapsed : ""}`}>
-      <Sidebar
-        briefCount={stats.totalCount}
+    <div className={styles.page}>
+      <div className={styles.pageHead}>
+        <h1>Dashboard</h1>
+        <Button
+          onClick={() => setIsBriefModalOpen(true)}
+          type="button"
+          className={`${styles.btnDash} ${styles.primary}`}
+        >
+          + New brief
+        </Button>
+      </div>
+      <KPIs
+        publishedCount={stats.publishedCount}
         interviewCount={stats.interviewCount}
         draftCount={stats.draftCount}
-        isCollapsed={sidebarCollapsed}
+        totalCount={stats.totalCount}
       />
-      <div className={styles.main}>
-        <Topbar
-          briefCount={stats.totalCount}
-          onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
-          isSidebarCollapsed={sidebarCollapsed}
-          onNewBrief={() => setIsBriefModalOpen(true)}
-        />
-        <div className={styles.page}>
-          <div className={styles.pageHead}>
-            <h1>Dashboard</h1>
-          </div>
-          <KPIs
-            publishedCount={stats.publishedCount}
-            interviewCount={stats.interviewCount}
-            draftCount={stats.draftCount}
-            totalCount={stats.totalCount}
-          />
-          <Pipeline briefs={briefsQuery} />
-          <Leaderboard interviews={interviewsQuery} />
-        </div>
-      </div>
+      <Pipeline briefs={briefsQuery} />
+      <Leaderboard interviews={interviewsQuery} />
       <NewBriefModal
         open={isBriefModalOpen}
         onClose={() => setIsBriefModalOpen(false)}
@@ -767,6 +598,6 @@ export default function DashboardPage() {
           router.push(`/briefs?${params.toString()}`);
         }}
       />
-    </div>
+        </div>
   );
 }
