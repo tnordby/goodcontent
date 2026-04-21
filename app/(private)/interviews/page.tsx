@@ -16,7 +16,6 @@ export default function InterviewsPage() {
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
   const interviewsQuery = useQuery(api.interviews.listByCurrentWorkspace);
   const briefs = briefsQuery ?? [];
-  const interviews = interviewsQuery ?? [];
   const createLink = useMutation(api.interviews.createLinkForBrief);
   const [creatingFor, setCreatingFor] = useState<Id<"briefs"> | null>(null);
   const [latestUrl, setLatestUrl] = useState<string>("");
@@ -30,13 +29,26 @@ export default function InterviewsPage() {
     return `${window.location.origin}${latestUrl}`;
   }, [latestUrl]);
 
+  const interviewByBriefId = useMemo(() => {
+    const map = new Map<
+      Id<"briefs">,
+      NonNullable<typeof interviewsQuery>[number]
+    >();
+    const rows = interviewsQuery ?? [];
+    for (const row of rows) {
+      map.set(row.briefId, row);
+    }
+    return map;
+  }, [interviewsQuery]);
+
   const handleCreate = async (briefId: Id<"briefs">) => {
     setCreatingFor(briefId);
     try {
       const result = await createLink({ briefId });
       setLatestUrl(result.interviewUrl);
       toast.success("Interview link ready", {
-        description: "Copy the URL and send it to your expert. They only need a browser.",
+        description:
+          "Copy the URL and send it to your expert. Each brief has a single interview; refreshing creates a new URL and invalidates the old one.",
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create link");
@@ -59,8 +71,8 @@ export default function InterviewsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Interviews</h1>
         <p className="mt-2 text-muted-foreground">
-          Create a one-time link per brief, send it to your subject-matter expert, then
-          follow progress here until a draft appears in{" "}
+          Each brief has one interview workspace: one guest link at a time. Send it to
+          your subject-matter expert, then follow progress here until a draft appears in{" "}
           <Link
             className="font-medium text-primary underline-offset-4 hover:underline"
             href="/drafts"
@@ -105,8 +117,9 @@ export default function InterviewsPage() {
           <CardHeader>
             <CardTitle>Latest interview link</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Send this URL to your expert. It expires automatically; you can create a new
-              one from the same brief if needed.
+              Send this URL to your expert. It expires automatically. Use{" "}
+              <span className="font-medium text-foreground">Refresh interview link</span>{" "}
+              on the brief card if you need a new URL (the previous link stops working).
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
@@ -133,7 +146,11 @@ export default function InterviewsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Create interview link from brief</CardTitle>
+            <CardTitle>Create or refresh link</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              One interview per brief. If a link already exists and is still open, refresh
+              to rotate the URL.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {briefsQuery === undefined ? (
@@ -152,27 +169,72 @@ export default function InterviewsPage() {
                 </Button>
               </div>
             ) : (
-              briefs.map((brief) => (
-                <div
-                  key={brief._id}
-                  className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{brief.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {briefPhaseLabel(brief.phase)}
-                    </p>
-                  </div>
-                  <Button
-                    disabled={creatingFor === brief._id}
-                    onClick={() => handleCreate(brief._id)}
-                    size="sm"
-                    type="button"
+              briefs.map((brief) => {
+                const existing = interviewByBriefId.get(brief._id);
+                const hasUnusedPending =
+                  existing?.status === "pending" && !existing.startedAt;
+                const canRefreshUnused =
+                  !!existing &&
+                  (hasUnusedPending ||
+                    existing.status === "failed" ||
+                    existing.status === "expired");
+                const isBlocked =
+                  !!existing &&
+                  (existing.status === "in_progress" ||
+                    existing.status === "completed" ||
+                    (existing.status === "pending" && !!existing.startedAt));
+
+                let actionLabel = "Create interview link";
+                if (isBlocked) {
+                  actionLabel =
+                    existing!.status === "completed"
+                      ? "Interview completed"
+                      : "Interview in progress";
+                } else if (canRefreshUnused) {
+                  actionLabel = "Refresh interview link";
+                }
+
+                return (
+                  <div
+                    key={brief._id}
+                    className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    {creatingFor === brief._id ? "Creating…" : "Create interview link"}
-                  </Button>
-                </div>
-              ))
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-medium">{brief.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {briefPhaseLabel(brief.phase)}
+                      </p>
+                      {existing && isBlocked ? (
+                        <p className="text-xs text-muted-foreground">
+                          {existing.status === "completed"
+                            ? "Interview completed — continue in Drafts."
+                            : "Interview in progress — share the link you already created."}
+                        </p>
+                      ) : existing && canRefreshUnused ? (
+                        <p className="text-xs text-muted-foreground">
+                          Refreshing issues a new URL; any previous link for this brief stops
+                          working.
+                        </p>
+                      ) : null}
+                    </div>
+                    <Button
+                      disabled={
+                        creatingFor === brief._id || (!!existing && !!isBlocked)
+                      }
+                      onClick={() => handleCreate(brief._id)}
+                      size="sm"
+                      type="button"
+                      className="shrink-0"
+                    >
+                      {creatingFor === brief._id
+                        ? existing
+                          ? "Refreshing…"
+                          : "Creating…"
+                        : actionLabel}
+                    </Button>
+                  </div>
+                );
+              })
             )}
           </CardContent>
         </Card>
@@ -181,7 +243,7 @@ export default function InterviewsPage() {
           <CardHeader>
             <CardTitle>Workspace interviews</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Each row is one interview attempt. After the guest submits, check{" "}
+              One row per brief (your active interview). After the guest submits, check{" "}
               <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/drafts">
                 Drafts
               </Link>{" "}
@@ -191,13 +253,13 @@ export default function InterviewsPage() {
           <CardContent className="space-y-3">
             {interviewsQuery === undefined ? (
               <p className="text-sm text-muted-foreground">Loading interviews…</p>
-            ) : interviews.length === 0 ? (
+            ) : (interviewsQuery ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No interviews yet. Create a link from a brief on the left, then refresh
                 this list after your guest opens it.
               </p>
             ) : (
-              interviews.map((interview) => (
+              (interviewsQuery ?? []).map((interview) => (
                 <div
                   key={interview._id}
                   className="rounded-md border p-3 text-sm text-muted-foreground"

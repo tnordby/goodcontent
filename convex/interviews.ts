@@ -1,3 +1,5 @@
+import type { Doc } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, loadOrCreateUserForAuth } from "./users";
@@ -8,6 +10,62 @@ async function hashToken(rawToken: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function hasTranscript(interview: Doc<"interviews">): boolean {
+  return !!(interview.transcript && interview.transcript.trim().length > 0);
+}
+
+/** Rows that are not terminal and can be merged or rotated into a single guest link. */
+function isRegeneratableSlot(interview: Doc<"interviews">): boolean {
+  if (interview.status === "in_progress" || interview.status === "completed") {
+    return false;
+  }
+  if (interview.status === "failed" || interview.status === "expired") {
+    return !hasTranscript(interview);
+  }
+  if (interview.status === "pending") {
+    return !interview.startedAt && !hasTranscript(interview);
+  }
+  return false;
+}
+
+async function interviewHasDraft(
+  ctx: MutationCtx,
+  interview: Doc<"interviews">,
+): Promise<boolean> {
+  const draft = await ctx.db
+    .query("drafts")
+    .withIndex("by_brief_id", (q) => q.eq("briefId", interview.briefId))
+    .filter((q) => q.eq(q.field("interviewId"), interview._id))
+    .first();
+  return draft !== null;
+}
+
+function listRank(interview: Doc<"interviews">): number {
+  switch (interview.status) {
+    case "in_progress":
+      return 50;
+    case "completed":
+      return 40;
+    case "pending":
+      return 30;
+    case "failed":
+      return 20;
+    case "expired":
+      return 10;
+    default:
+      return 0;
+  }
+}
+
+/** Prefer the interview that best represents this brief in the workspace list. */
+function pickCanonicalInterview<T extends Doc<"interviews">>(rows: T[]): T {
+  return [...rows].sort((a, b) => {
+    const d = listRank(b) - listRank(a);
+    if (d !== 0) return d;
+    return b.updatedAt - a.updatedAt;
+  })[0]!;
 }
 
 export const listByCurrentWorkspace = query({
@@ -23,7 +81,7 @@ export const listByCurrentWorkspace = query({
       .order("desc")
       .collect();
 
-    return await Promise.all(
+    const enriched = await Promise.all(
       interviews.map(async (interview) => {
         const brief = await ctx.db.get(interview.briefId);
         const draft = await ctx.db
@@ -39,6 +97,22 @@ export const listByCurrentWorkspace = query({
         };
       }),
     );
+
+    const byBriefId = new Map<string, typeof enriched>();
+    for (const row of enriched) {
+      const key = row.briefId as string;
+      const list = byBriefId.get(key) ?? [];
+      list.push(row);
+      byBriefId.set(key, list);
+    }
+
+    const deduped: typeof enriched = [];
+    for (const group of byBriefId.values()) {
+      deduped.push(pickCanonicalInterview(group));
+    }
+
+    deduped.sort((a, b) => b.updatedAt - a.updatedAt);
+    return deduped;
   },
 });
 
@@ -56,30 +130,99 @@ export const createLinkForBrief = mutation({
 
     const now = Date.now();
     const days = Math.max(1, Math.min(expiresInDays ?? 7, 30));
+    const expiresAt = now + days * 24 * 60 * 60 * 1000;
+
+    const rows = await ctx.db
+      .query("interviews")
+      .withIndex("by_brief_id", (q) => q.eq("briefId", brief._id))
+      .collect();
+
+    if (rows.some((r) => r.workspaceId !== brief.workspaceId)) {
+      throw new Error("Brief not found");
+    }
+
+    const patchBriefToInterviewPhase = async () => {
+      if (
+        brief.phase === "brief" ||
+        brief.phase === "research" ||
+        brief.phase === "outline"
+      ) {
+        await ctx.db.patch(brief._id, { phase: "interview", updatedAt: now });
+      }
+    };
+
+    const returnForInterview = async (
+      interviewId: (typeof rows)[number]["_id"],
+      rawToken: string,
+    ) => {
+      await patchBriefToInterviewPhase();
+      return {
+        interviewId,
+        token: rawToken,
+        interviewUrl: `/interview/${rawToken}`,
+        expiresAt,
+      };
+    };
+
+    if (rows.length === 0) {
+      const rawToken = crypto.randomUUID();
+      const guestTokenHash = await hashToken(rawToken);
+      const interviewId = await ctx.db.insert("interviews", {
+        workspaceId: user.workspaceId,
+        briefId: brief._id,
+        guestTokenHash,
+        status: "pending",
+        creditsConsumed: 0,
+        expiresAt,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return returnForInterview(interviewId, rawToken);
+    }
+
+    if (rows.some((r) => r.status === "in_progress")) {
+      throw new Error(
+        "An interview is already in progress for this brief. Share the same link with your guest.",
+      );
+    }
+    if (rows.some((r) => r.status === "completed")) {
+      throw new Error(
+        "This brief already has a completed interview. Open Drafts to continue working on the piece.",
+      );
+    }
+    if (rows.some((r) => r.status === "pending" && r.startedAt)) {
+      throw new Error(
+        "An interview is already in progress for this brief. Share the same link with your guest.",
+      );
+    }
+
+    const regeneratable = rows.filter((r) => isRegeneratableSlot(r));
+    if (regeneratable.length === 0) {
+      throw new Error(
+        "Cannot create a new interview link for this brief in its current state.",
+      );
+    }
+
+    regeneratable.sort((a, b) => b.updatedAt - a.updatedAt);
+    const keeper = regeneratable[0]!;
+
+    for (const r of rows) {
+      if (r._id === keeper._id) continue;
+      if (!isRegeneratableSlot(r)) continue;
+      if (await interviewHasDraft(ctx, r)) continue;
+      await ctx.db.delete(r._id);
+    }
+
     const rawToken = crypto.randomUUID();
     const guestTokenHash = await hashToken(rawToken);
-
-    const interviewId = await ctx.db.insert("interviews", {
-      workspaceId: user.workspaceId,
-      briefId: brief._id,
+    await ctx.db.patch(keeper._id, {
       guestTokenHash,
       status: "pending",
-      creditsConsumed: 0,
-      expiresAt: now + days * 24 * 60 * 60 * 1000,
-      createdAt: now,
+      expiresAt,
       updatedAt: now,
     });
 
-    if (brief.phase === "brief" || brief.phase === "research" || brief.phase === "outline") {
-      await ctx.db.patch(brief._id, { phase: "interview", updatedAt: now });
-    }
-
-    return {
-      interviewId,
-      token: rawToken,
-      interviewUrl: `/interview/${rawToken}`,
-      expiresAt: now + days * 24 * 60 * 60 * 1000,
-    };
+    return returnForInterview(keeper._id, rawToken);
   },
 });
 

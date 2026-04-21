@@ -153,8 +153,10 @@ export function GuestInterviewClient({ token }: { token: string }) {
         </div>
       ) : session.state === "expired" ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-950 dark:text-amber-100">
-          This link has expired. Ask your host to create a fresh interview link from
-          the same brief.
+          This link has expired. Ask your host to open{" "}
+          <span className="font-medium text-foreground">Interviews</span> in GoodContent
+          and use <span className="font-medium text-foreground">Refresh interview link</span>{" "}
+          for this brief to send you a new URL.
         </div>
       ) : session.state === "used" || didSubmit ? (
         <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
