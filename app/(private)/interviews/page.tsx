@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { format } from "date-fns";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { briefPhaseLabel } from "@/lib/brief-phase";
+import { interviewStatusLabel } from "@/lib/pipeline-labels";
 
 export default function InterviewsPage() {
   const briefsQuery = useQuery(api.briefs.listByCurrentWorkspace);
@@ -33,7 +35,9 @@ export default function InterviewsPage() {
     try {
       const result = await createLink({ briefId });
       setLatestUrl(result.interviewUrl);
-      toast.success("Interview link created");
+      toast.success("Interview link ready", {
+        description: "Copy the URL and send it to your expert. They only need a browser.",
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create link");
     } finally {
@@ -55,18 +59,58 @@ export default function InterviewsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Interviews</h1>
         <p className="mt-2 text-muted-foreground">
-          Track guest interview links, interview states, transcripts, and
-          follow-up activity.
+          Create a one-time link per brief, send it to your subject-matter expert, then
+          follow progress here until a draft appears in{" "}
+          <Link
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            href="/drafts"
+          >
+            Drafts
+          </Link>
+          .
         </p>
       </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">How the flow fits together</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>
+              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/briefs">
+                Briefs
+              </Link>{" "}
+              — define what you need from the interview.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Interviews (this page)</span> —
+              generate a private link and share it with your guest.
+            </li>
+            <li>
+              Guest completes the interview in one sitting (consent + written answers).
+            </li>
+            <li>
+              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/drafts">
+                Drafts
+              </Link>{" "}
+              — AI draft generates automatically; your team reviews and approves.
+            </li>
+          </ol>
+        </CardContent>
+      </Card>
 
       {latestUrl ? (
         <Card>
           <CardHeader>
             <CardTitle>Latest interview link</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Send this URL to your expert. It expires automatically; you can create a new
+              one from the same brief if needed.
+            </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
-            <code className="break-all rounded bg-muted px-2 py-1">
+            <code className="break-all rounded bg-muted px-2 py-2 text-xs">
               {latestInterviewUrl || latestUrl}
             </code>
             <div className="flex flex-wrap gap-2">
@@ -77,6 +121,9 @@ export default function InterviewsPage() {
                 variant="secondary"
               >
                 Copy URL
+              </Button>
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link href="/drafts">Open drafts</Link>
               </Button>
             </div>
           </CardContent>
@@ -108,11 +155,11 @@ export default function InterviewsPage() {
               briefs.map((brief) => (
                 <div
                   key={brief._id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="font-medium">{brief.title}</p>
-                    <p className="text-xs uppercase text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {briefPhaseLabel(brief.phase)}
                     </p>
                   </div>
@@ -120,8 +167,9 @@ export default function InterviewsPage() {
                     disabled={creatingFor === brief._id}
                     onClick={() => handleCreate(brief._id)}
                     size="sm"
+                    type="button"
                   >
-                    {creatingFor === brief._id ? "Creating..." : "Create link"}
+                    {creatingFor === brief._id ? "Creating…" : "Create interview link"}
                   </Button>
                 </div>
               ))
@@ -132,14 +180,21 @@ export default function InterviewsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Workspace interviews</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Each row is one interview attempt. After the guest submits, check{" "}
+              <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/drafts">
+                Drafts
+              </Link>{" "}
+              for the generated markdown.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {interviewsQuery === undefined ? (
               <p className="text-sm text-muted-foreground">Loading interviews…</p>
             ) : interviews.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No interviews yet. After you create a link from a brief, it will
-                show up here.
+                No interviews yet. Create a link from a brief on the left, then refresh
+                this list after your guest opens it.
               </p>
             ) : (
               interviews.map((interview) => (
@@ -148,10 +203,45 @@ export default function InterviewsPage() {
                   className="rounded-md border p-3 text-sm text-muted-foreground"
                 >
                   <p className="font-medium text-foreground">{interview.briefTitle}</p>
-                  <p className="text-xs text-muted-foreground">Brief ID: {interview.briefId}</p>
-                  <p className="mt-2">Status: {interview.status}</p>
+                  <p className="mt-1 text-xs">
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    <span className="font-medium text-foreground">
+                      {interviewStatusLabel(interview.status)}
+                    </span>
+                    {" · "}
+                    <span className="text-muted-foreground">Link expires</span>{" "}
+                    <span className="font-medium text-foreground">
+                      {format(interview.expiresAt, "PP")}
+                    </span>
+                  </p>
+                  {interview.draftStatus ? (
+                    <p className="mt-2 text-xs">
+                      <span className="text-muted-foreground">Draft:</span>{" "}
+                      <span className="font-medium text-foreground">
+                        {interview.draftStatus}
+                      </span>
+                      {interview.status === "completed" ? (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <Link
+                            className="font-medium text-primary underline-offset-4 hover:underline"
+                            href="/drafts"
+                          >
+                            Open drafts
+                          </Link>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : interview.status === "completed" ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Draft record will appear in Drafts within a few seconds.
+                    </p>
+                  ) : null}
                   {interview.transcript ? (
-                    <p className="mt-2 line-clamp-4 whitespace-pre-wrap">{interview.transcript}</p>
+                    <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs">
+                      {interview.transcript}
+                    </p>
                   ) : null}
                 </div>
               ))

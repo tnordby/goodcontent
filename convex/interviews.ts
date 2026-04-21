@@ -26,9 +26,16 @@ export const listByCurrentWorkspace = query({
     return await Promise.all(
       interviews.map(async (interview) => {
         const brief = await ctx.db.get(interview.briefId);
+        const draft = await ctx.db
+          .query("drafts")
+          .withIndex("by_brief_id", (q) => q.eq("briefId", interview.briefId))
+          .filter((q) => q.eq(q.field("interviewId"), interview._id))
+          .first();
         return {
           ...interview,
           briefTitle: brief?.title ?? "Unknown brief",
+          draftId: draft?._id ?? null,
+          draftStatus: draft?.status ?? null,
         };
       }),
     );
@@ -104,6 +111,10 @@ export const getGuestSessionByToken = query({
       briefTitle: brief?.title ?? "Untitled brief",
       briefTopic: brief?.topic ?? "",
       contentType: brief?.contentType ?? "blog_post",
+      toneOfVoice: brief?.toneOfVoice ?? "",
+      keywords: brief?.keywords ?? [],
+      sources: brief?.sources ?? [],
+      customQuestions: brief?.customQuestions ?? [],
       interviewerLanguage: brief?.interviewerLanguage ?? "en",
       outputLanguage: brief?.outputLanguage ?? "en",
       status: interview.status,
@@ -113,8 +124,11 @@ export const getGuestSessionByToken = query({
 });
 
 export const startByToken = mutation({
-  args: { token: v.string() },
-  handler: async (ctx, { token }) => {
+  args: {
+    token: v.string(),
+    consentAcknowledged: v.boolean(),
+  },
+  handler: async (ctx, { token, consentAcknowledged }) => {
     const guestTokenHash = await hashToken(token);
     const interview = await ctx.db
       .query("interviews")
@@ -133,10 +147,15 @@ export const startByToken = mutation({
       throw new Error("Interview has already started or is no longer available");
     }
 
+    if (!consentAcknowledged) {
+      throw new Error("Please confirm consent before starting");
+    }
+
     const now = Date.now();
     await ctx.db.patch(interview._id, {
       status: "in_progress",
       startedAt: now,
+      consentedAt: now,
       updatedAt: now,
     });
 

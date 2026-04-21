@@ -7,9 +7,9 @@ export default function DashboardPage() {
     <div className="container mx-auto p-6 space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Welcome to GoodContent</h1>
-        <p className="text-muted-foreground mt-2">
-          Phase 1 foundation is in place. Continue with the core content
-          workflow setup.
+        <p className="text-muted-foreground mt-2 max-w-2xl">
+          Run the full loop from here: define a brief, send a guest interview link,
+          then review the AI draft before approval.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

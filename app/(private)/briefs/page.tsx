@@ -97,7 +97,9 @@ export default function BriefsPage() {
         keywords: "",
         sources: "",
       }));
-      toast.success("Brief created");
+      toast.success("Brief created — next, create an interview link", {
+        description: "Open Interviews to invite your expert.",
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create brief");
     } finally {
@@ -165,6 +167,22 @@ export default function BriefsPage() {
         </p>
       </div>
       {authBlocked}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Pipeline:</span> brief → guest
+            interview → AI draft → review
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" type="button" variant="secondary">
+              <Link href="/interviews">Interview links</Link>
+            </Button>
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href="/drafts">Drafts</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -302,6 +320,16 @@ export default function BriefsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Workspace briefs</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              When a brief is ready, open{" "}
+              <Link
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                href="/interviews"
+              >
+                Interviews
+              </Link>{" "}
+              to create a secure link for your expert.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {briefsQuery === undefined ? (

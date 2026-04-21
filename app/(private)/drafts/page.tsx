@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -100,7 +101,15 @@ export default function DraftsPage() {
         <p className="mt-2 text-muted-foreground">
           Review AI-generated drafts, edit in place, use Regenerate with AI to run
           Claude again on the same interview, approve when ready, or send an approved
-          draft back for more edits.
+          draft back for more edits. Pipelines start in{" "}
+          <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/briefs">
+            Briefs
+          </Link>{" "}
+          and{" "}
+          <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/interviews">
+            Interviews
+          </Link>
+          .
         </p>
       </div>
 
