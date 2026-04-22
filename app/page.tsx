@@ -2,6 +2,7 @@
 
 import { FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { MessageSquareQuote } from "lucide-react";
 import "./landing.global.css";
 import styles from "./landing.module.css";
 import demoStyles from "./demo.module.css";
@@ -10,30 +11,12 @@ import extraStyles from "./extras.module.css";
 // ========== Logo Component ==========
 function Logo({ size = 22 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Quote-like design representing content/conversation */}
-      <path
-        d="M7 8C7 6.89543 7.89543 6 9 6H10C11.1046 6 12 6.89543 12 8V12C12 13.1046 11.1046 14 10 14H9C7.89543 14 7 13.1046 7 12V8Z"
-        fill="currentColor"
-      />
-      <path
-        d="M14 8C14 6.89543 14.8954 6 16 6H17C18.1046 6 19 6.89543 19 8V12C19 13.1046 18.1046 14 17 14H16C14.8954 14 14 13.1046 14 12V8Z"
-        fill="currentColor"
-      />
-      {/* Checkmark for "good" */}
-      <path
-        d="M9.5 16L8 17.5L9.5 19L13 15.5L9.5 16Z"
-        fill="currentColor"
-        opacity="0.7"
-      />
-      <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="1.5" opacity="0.15" />
-    </svg>
+    <MessageSquareQuote
+      size={size}
+      strokeWidth={1.9}
+      style={{ color: "#e24a43" }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -491,145 +474,6 @@ function InterviewDemo() {
   );
 }
 
-// ========== HeroArt Component ==========
-function HeroArt() {
-  return (
-    <div className={extraStyles.heroArt}>
-      <div className={extraStyles.heroArtCard}>
-        <div className={extraStyles.heroArtHead}>
-          <div
-            className={styles.mono}
-            style={{
-              fontSize: 10,
-              color: "var(--fg-subtle)",
-              letterSpacing: "0.12em",
-            }}
-          >
-            BRIEF → INTERVIEW → DRAFT
-          </div>
-          <div
-            className={styles.mono}
-            style={{ fontSize: 10, color: "var(--accent)" }}
-          >
-            ● LIVE
-          </div>
-        </div>
-        <div className={extraStyles.heroArtStack}>
-          <div
-            className={extraStyles.heroArtRow}
-            style={{ "--d": "0s" } as React.CSSProperties}
-          >
-            <div
-              className={`${extraStyles.heroArtTag} ${styles.mono}`}
-              style={{ fontSize: 10 }}
-            >
-              01 · BRIEF
-            </div>
-            <div className={extraStyles.heroArtTxt}>
-              Case study — Beacon Logistics
-            </div>
-            <div className={`${extraStyles.heroArtMeta} ${styles.mono}`}>
-              03:42
-            </div>
-          </div>
-          <div
-            className={`${extraStyles.heroArtRow} ${extraStyles.heroArtActive}`}
-            style={{ "--d": "0.1s" } as React.CSSProperties}
-          >
-            <div className={`${extraStyles.heroArtTag} ${styles.mono}`}>
-              02 · INTERVIEW
-            </div>
-            <div className={extraStyles.heroArtTxt}>
-              <span className={extraStyles.heroWave}>
-                {Array.from({ length: 14 }).map((_, i) => (
-                  <i
-                    key={i}
-                    style={{ animationDelay: `${i * 0.08}s` }}
-                  />
-                ))}
-              </span>
-              <span style={{ marginLeft: 10 }}>Recording · Jamie speaking</span>
-            </div>
-            <div
-              className={`${extraStyles.heroArtMeta} ${styles.mono}`}
-              style={{ color: "var(--accent)" }}
-            >
-              08:17
-            </div>
-          </div>
-          <div
-            className={`${extraStyles.heroArtRow} ${extraStyles.heroArtPending}`}
-            style={{ "--d": "0.2s" } as React.CSSProperties}
-          >
-            <div className={`${extraStyles.heroArtTag} ${styles.mono}`}>
-              03 · DRAFT
-            </div>
-            <div
-              className={extraStyles.heroArtTxt}
-              style={{ color: "var(--fg-subtle)" }}
-            >
-              Generating · pushed to HubSpot
-            </div>
-            <div
-              className={`${extraStyles.heroArtMeta} ${styles.mono}`}
-              style={{ color: "var(--fg-subtle)" }}
-            >
-              —:—
-            </div>
-          </div>
-        </div>
-
-        <div className={extraStyles.heroArtFooter}>
-          <div className={extraStyles.heroArtFooterStat}>
-            <div
-              className={styles.mono}
-              style={{
-                fontSize: 10,
-                color: "var(--fg-subtle)",
-                letterSpacing: "0.1em",
-              }}
-            >
-              AVG INTERVIEW
-            </div>
-            <div className={extraStyles.heroArtFooterVal}>11 min</div>
-          </div>
-          <div className={extraStyles.heroArtFooterStat}>
-            <div
-              className={styles.mono}
-              style={{
-                fontSize: 10,
-                color: "var(--fg-subtle)",
-                letterSpacing: "0.1em",
-              }}
-            >
-              AVG DRAFT TIME
-            </div>
-            <div className={extraStyles.heroArtFooterVal}>54 sec</div>
-          </div>
-          <div className={extraStyles.heroArtFooterStat}>
-            <div
-              className={styles.mono}
-              style={{
-                fontSize: 10,
-                color: "var(--fg-subtle)",
-                letterSpacing: "0.1em",
-              }}
-            >
-              VS AGENCY
-            </div>
-            <div
-              className={extraStyles.heroArtFooterVal}
-              style={{ color: "var(--accent)" }}
-            >
-              −96%
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ========== Main Page Component ==========
 export default function Home() {
   const [openFaq, setOpenFaq] = useState(0);
@@ -767,9 +611,6 @@ export default function Home() {
             <a href="#faq">FAQ</a>
           </div>
           <div className={styles.navRight}>
-            <Link className={`${styles.btn} ${styles.btnGhost}`} href="/dashboard">
-              Open app
-            </Link>
             <Link className={`${styles.btn} ${styles.btnGhost}`} href="/sign-in">
               Sign in
             </Link>
@@ -786,26 +627,30 @@ export default function Home() {
       {/* Hero */}
       <section className={styles.hero}>
         <div className={styles.bgGrid} />
-        <div className={styles.wrap}>
-          <div className={styles.heroGrid}>
-            <div>
+        <div className={`${styles.wrap} ${styles.heroWrap}`}>
+          <div className={`${styles.heroGrid} ${styles.heroGridSingle}`}>
+            <div className={styles.heroContent}>
               <h1 className={styles.heroTitle}>
                 A content writer,
                 <br />
                 <em>as software.</em>
               </h1>
-              <p className={styles.heroSub}>
+              <p className={styles.heroSub} style={{ marginInline: "auto" }}>
                 Skip the expensive writers. Hire an AI interviewer instead. It
                 runs async voice interviews with your SMEs and clients — and
                 publishes the draft straight to your CMS.
               </p>
-              <WaitlistForm size="lg" cta="Join waitlist" />
-              <div className={styles.heroMeta}>
+              <div id="demo" style={{ marginTop: 36 }}>
+                <InterviewDemo />
+              </div>
+              <div style={{ maxWidth: 540, margin: "28px auto 0" }}>
+                <WaitlistForm size="lg" cta="Join waitlist" />
+              </div>
+              <div className={styles.heroMeta} style={{ justifyContent: "center" }}>
                 <span>Private beta this summer</span>
                 <span>First 100 teams get 50% off year one</span>
               </div>
             </div>
-            <HeroArt />
           </div>
         </div>
       </section>
@@ -856,25 +701,6 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Demo */}
-      <section id="demo" className={styles.section}>
-        <div className={styles.wrap}>
-          <div className={styles.sectionHead}>
-            <div>
-              <div className={`${styles.kicker} ${styles.mono}`}>
-                02 — Live demo
-              </div>
-              <h2>
-                An AI interviewer.
-                <br />
-                No expensive writers.
-              </h2>
-            </div>
-          </div>
-          <InterviewDemo />
         </div>
       </section>
 
