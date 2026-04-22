@@ -70,6 +70,9 @@ export const create = mutation({
     outputLanguage: v.string(),
     keywords: v.optional(v.array(v.string())),
     sources: v.optional(v.array(v.string())),
+    formattingRules: v.optional(v.string()),
+    outline: v.optional(v.string()),
+    customQuestions: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const user = await loadOrCreateUserForAuth(ctx);
@@ -83,12 +86,52 @@ export const create = mutation({
       topic: args.topic.trim(),
       keywords: args.keywords ?? [],
       toneOfVoice: args.toneOfVoice.trim(),
+      formattingRules: args.formattingRules?.trim() || undefined,
+      outline: args.outline?.trim() || undefined,
       sources: args.sources ?? [],
-      customQuestions: [],
+      customQuestions: args.customQuestions ?? [],
       interviewerLanguage: args.interviewerLanguage.trim(),
       outputLanguage: args.outputLanguage.trim(),
       phase: "brief",
       createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const advanceToResearch = mutation({
+  args: { briefId: v.id("briefs") },
+  handler: async (ctx, { briefId }) => {
+    const user = await loadOrCreateUserForAuth(ctx);
+    const brief = await ctx.db.get(briefId);
+    if (!brief || brief.workspaceId !== user.workspaceId) {
+      throw new Error("Brief not found");
+    }
+    if (brief.phase !== "brief") {
+      throw new Error("Brief must be in Brief phase to start research");
+    }
+
+    const now = Date.now();
+    const research = await ctx.db
+      .query("research")
+      .withIndex("by_brief_id", (q) => q.eq("briefId", briefId))
+      .first();
+
+    if (!research) {
+      await ctx.db.insert("research", {
+        workspaceId: user.workspaceId,
+        briefId,
+        notes: `# Research — ${brief.title}\n\n## Working topic\n${brief.topic}\n\n## Angles to validate\n- \n\n## Sources to verify\n- \n`,
+        status: "ready",
+        creditsConsumed: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(briefId, {
+      phase: "research",
+      briefReadyAt: now,
       updatedAt: now,
     });
   },

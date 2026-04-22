@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
   contentTypeLabel,
   interviewStatusLabel,
 } from "@/lib/pipeline-labels";
+import { toast } from "sonner";
 
 export default function BriefHubPage() {
   const params = useParams();
@@ -23,6 +24,17 @@ export default function BriefHubPage() {
     api.briefs.get,
     briefId ? { briefId: briefId as Id<"briefs"> } : "skip",
   );
+  const researchRow = useQuery(
+    api.research.getForBrief,
+    briefId ? { briefId: briefId as Id<"briefs"> } : "skip",
+  );
+  const outlineRow = useQuery(
+    api.outlines.getForBrief,
+    briefId ? { briefId: briefId as Id<"briefs"> } : "skip",
+  );
+  const advanceToResearch = useMutation(api.briefs.advanceToResearch);
+  const approveResearch = useMutation(api.research.approve);
+  const approveOutline = useMutation(api.outlines.approve);
 
   if (!briefId) {
     return (
@@ -103,6 +115,84 @@ export default function BriefHubPage() {
               <span className="font-medium text-foreground">{brief.draftStatus}</span>
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pipeline</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          {brief.phase === "brief" ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>When the brief is ready, start research to capture angles and sources.</p>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await advanceToResearch({ briefId: briefId as Id<"briefs"> });
+                    toast.success("Research phase started");
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : "Could not advance brief",
+                    );
+                  }
+                }}
+              >
+                Start research
+              </Button>
+            </div>
+          ) : null}
+          {brief.phase === "research" && researchRow && researchRow.status !== "approved" ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>Review research notes, then approve to unlock the outline phase.</p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await approveResearch({ briefId: briefId as Id<"briefs"> });
+                    toast.success("Research approved — outline phase unlocked");
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : "Could not approve research",
+                    );
+                  }
+                }}
+              >
+                Approve research
+              </Button>
+            </div>
+          ) : null}
+          {brief.phase === "outline" && outlineRow && outlineRow.status !== "approved" ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>Finalize the outline, then approve to enable interview links.</p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await approveOutline({ briefId: briefId as Id<"briefs"> });
+                    toast.success("Outline approved — interview phase unlocked");
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : "Could not approve outline",
+                    );
+                  }
+                }}
+              >
+                Approve outline
+              </Button>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href="/research">Research list</Link>
+            </Button>
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href="/outlines">Outline list</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

@@ -22,6 +22,8 @@ import type * as lib_kie from "../lib/kie.js";
 import type * as lib_openai from "../lib/openai.js";
 import type * as lib_polar from "../lib/polar.js";
 import type * as interviews from "../interviews.js";
+import type * as outlines from "../outlines.js";
+import type * as research from "../research.js";
 import type * as subscriptions_mutations from "../subscriptions/mutations.js";
 import type * as subscriptions_queries from "../subscriptions/queries.js";
 import type * as users from "../users.js";
@@ -53,6 +55,8 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/mutations": typeof subscriptions_mutations;
   "subscriptions/queries": typeof subscriptions_queries;
   interviews: typeof interviews;
+  outlines: typeof outlines;
+  research: typeof research;
   users: typeof users;
   "video_generations/actions": typeof video_generations_actions;
   "video_generations/mutations": typeof video_generations_mutations;

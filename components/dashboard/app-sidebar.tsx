@@ -16,6 +16,8 @@ import {
   PanelsTopLeft,
   Building2,
   NotebookPen,
+  Microscope,
+  ListTree,
   AudioLines,
   Sparkles,
   SlidersHorizontal,
@@ -39,6 +41,16 @@ const items = [
     title: "Briefs",
     url: "/briefs",
     icon: NotebookPen,
+  },
+  {
+    title: "Research",
+    url: "/research",
+    icon: Microscope,
+  },
+  {
+    title: "Outline",
+    url: "/outlines",
+    icon: ListTree,
   },
   {
     title: "Interviews",

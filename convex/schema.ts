@@ -112,6 +112,7 @@ export default defineSchema({
     formattingRules: v.optional(v.string()),
     sources: v.array(v.string()),
     customQuestions: v.array(v.string()),
+    outline: v.optional(v.string()),
     interviewerLanguage: v.string(),
     outputLanguage: v.string(),
     phase: v.union(
@@ -124,11 +125,46 @@ export default defineSchema({
       v.literal("review"),
       v.literal("pushed")
     ),
+    briefReadyAt: v.optional(v.number()),
+    researchApprovedAt: v.optional(v.number()),
+    outlineApprovedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_workspace_id", ["workspaceId"])
     .index("by_workspace_phase", ["workspaceId", "phase"]),
+
+  research: defineTable({
+    workspaceId: v.id("workspaces"),
+    briefId: v.id("briefs"),
+    notes: v.string(),
+    keywordAnalysis: v.optional(v.string()),
+    status: v.union(
+      v.literal("generating"),
+      v.literal("ready"),
+      v.literal("approved")
+    ),
+    creditsConsumed: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace_id", ["workspaceId"])
+    .index("by_brief_id", ["briefId"]),
+
+  outlines: defineTable({
+    workspaceId: v.id("workspaces"),
+    briefId: v.id("briefs"),
+    structure: v.string(),
+    status: v.union(
+      v.literal("generating"),
+      v.literal("ready"),
+      v.literal("approved")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace_id", ["workspaceId"])
+    .index("by_brief_id", ["briefId"]),
 
   interviews: defineTable({
     workspaceId: v.id("workspaces"),
